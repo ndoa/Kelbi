@@ -4,7 +4,7 @@
 #   `py -3 -m pip install frida`
 #
 # Run in an administrator command prompt with:
-#   `py -3 mho_boot.py MHOClient.exe`
+#   `py -3 mho_boot.py`
 
 import frida
 import sys
