@@ -5,14 +5,12 @@ import threading
 from Packets import *
 from hexdump import hexdump
 
-
 def fixed_recv(conn, n):
     b = bytearray()
     while len(b) != n:
         b.extend(conn.recv(n - len(b)))
 
     return b
-
 
 class GameClient():
     def __init__(self, conn, addr):
@@ -113,33 +111,7 @@ class GameClient():
             
             send_tpdu_frame(self.conn, TPDU_CMD.TPDU_CMD_NONE, bytes([]), out.getvalue())
 
-
             pass
-
-
-        """
-        Got CSPkg: Container:
-            Head = Container:
-                CmdID = (enum) CS_CMD_CHECK_VERSION_REQ 21
-                HeadLen = 16
-                BodyLen = 48
-                SeqID = 2
-                NoUse = 0
-            Body = Container:
-                MajorVerNo = 2
-                MinorVerNo = 0
-                RevisVerNo = 11
-                BuildVerNo = 860
-                IgnoreTag = 0
-                ProtoVer = 1
-                Feature = Container:
-                    FeatureHash = 740454117
-                    FeatureEnabled = 15564440302519814839
-                Reserve1 = 0
-                Reserve2 = 0
-                TGPTicketLen = 0
-                TGPTicket = ListContainer:
-        """
 
 
 
@@ -241,39 +213,6 @@ def listen():
 
 
 if __name__ == "__main__":
-
-    # ext = TPDUExtIdent.build(dict(
-    #     Len=4,
-    #     EncryptIdent=[0, 0, 0, 0],
-    # ))
-
-    # resp = TPDUFrame.build(dict(
-    #     Head=dict(
-    #         Base=dict(
-    #             Magic=TPDU_MAGIC,
-    #             Version=TPDU_VERSION,
-    #             Cmd=TPDU_CMD.TPDU_CMD_IDENT,
-    #             EncHeadLen=0,
-    #             HeadLen=12+len(ext),
-    #             BodyLen=0,
-    #         ),
-    #         Ext=TPDUExtIdent.parse(ext)
-    #     ),
-    #     Body=dict()
-    # ))
-
-    # print(resp)
-    # print(TPDUFrame.parse(resp))
-    # os.exit(1)
-
-    # data = bytes([0x55, 0x0E, 0x03, 0x00, 0x00, 0x00, 0x00, 0x65, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x03, 0x24, 0x89, 0xE8, 0x65, 0x00, 0x00, 0x00, 0x03, 0x7D, 0xE9, 0x81, 0x15, 0x48, 0x00, 0x01, 0x63, 0x2C, 0x78, 0xC9, 0x00, 0x40, 0x65, 0x2D, 0xF7, 0xD0, 0x1E, 0x90, 0x49, 0xDC, 0x2B, 0x4E, 0xF8, 0x48, 0xEC,
-    #               0x7C, 0x18, 0xC4, 0xBF, 0xB6, 0x92, 0x6B, 0x14, 0x2E, 0xE5, 0xFF, 0x01, 0xA8, 0xC7, 0xF8, 0x25, 0xC6, 0x66, 0x0B, 0x25, 0xA8, 0x08, 0xC0, 0x63, 0xC3, 0xCC, 0xA7, 0x34, 0x69, 0x3E, 0x67, 0xA1, 0x3E, 0xFE, 0xB4, 0x0C, 0xF0, 0x83, 0x31, 0x11, 0x7B, 0xFB, 0x8F, 0x59, 0x42, 0xDC, 0x75, 0x34, 0xAA, 0xD8, 0x24])
-    # frame = TPDUFrame.parse(data)
-    # print(frame)
-    # os.exit(1)
-    # data = b'\x00\x00\x00\x03\x24\x89\xE8\x65\x00\x00\x00\x03\x00\x00\x00\x55'
-    # print(TPDUExtAuthInfo.parse(data))
-
     try:
         listen()
     except KeyboardInterrupt:

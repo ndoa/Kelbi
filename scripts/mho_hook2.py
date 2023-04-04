@@ -4,7 +4,7 @@
 #   `py -3 -m pip install frida`
 #
 # Run in an administrator command prompt with:
-#   `py -3 frida_packet_log2.py MHOClient.exe`
+#   `py -3 mho_hook2.py MHOClient.exe`
 
 import frida
 import sys
@@ -29,7 +29,6 @@ def main():
     function get_call_logger(name, base) {
         return {
             onEnter: function (args) {
-                //console.log("(ret:" + this.returnAddress.toString() + ") " + name + " called");
                 console.log("(ret:" + this.returnAddress.toString() + ", RVA: base+" + this.returnAddress.sub(base).toString() + ") " + name + " called");
             }
         };
@@ -51,17 +50,17 @@ def main():
     Interceptor.attach(Module.findExportByName("ws2_32.dll", 'sendto'), get_call_logger("ws2_32.dll!sendto", Process.getModuleByName("ws2_32.dll").base));
     Interceptor.attach(Module.findExportByName("ws2_32.dll", 'recvfrom'), get_call_logger("ws2_32.dll!recvfrom", Process.getModuleByName("ws2_32.dll").base));
 
-    console.log("waiting for protocalhandler.dll");
-    setTimeout(waitForModuleToLoad, 20);
-    setTimeout(waitForProtocalHandler, 20);
+    console.log("waiting for crygame.dll and protocalhandler.dll");
+    setTimeout(waitForCryGameDLL, 20);
+    setTimeout(waitForProtocalHandlerDLL, 20);
     
-    function waitForProtocalHandler() {
+    function waitForProtocalHandlerDLL() {
         // Retry until we get the module.
         try{
             protocalHandlerMod = Process.getModuleByName(protocalHandlerModName);
         }
         catch(err) {
-            setTimeout(waitForProtocalHandler, 20);
+            setTimeout(waitForProtocalHandlerDLL, 20);
             return;
         }
         console.log("Got " + protocalHandlerModName);
@@ -69,19 +68,19 @@ def main():
 
         // Wait for unpack.
         if(protocalHandlerMod.base.add(addr_select_rev_sub).readU8() != 0x8B) {
-            setTimeout(waitForProtocalHandler, 50);
+            setTimeout(waitForProtocalHandlerDLL, 50);
             return;
         }
         console.log("Module is now unpacked: " + protocalHandlerModName);
 
 
         Interceptor.attach(protocalHandlerMod.base.add(addr_select_rev_sub), get_call_logger("addr_select_rev_sub", protocalHandlerMod.base));
-        Interceptor.attach(protocalHandlerMod.base.add(ptr(0x83600)), get_call_logger("tnet_send", protocalHandlerMod.base));
-        Interceptor.attach(protocalHandlerMod.base.add(ptr(0x83640)), get_call_logger("tnet_sendall", protocalHandlerMod.base));
+        Interceptor.attach(protocalHandlerMod.base.add(ptr(0x83600)), get_call_logger("net_send", protocalHandlerMod.base));
+        Interceptor.attach(protocalHandlerMod.base.add(ptr(0x83640)), get_call_logger("net_sendall", protocalHandlerMod.base));
 
         Interceptor.attach(protocalHandlerMod.base.add(ptr(0x73dc0)), {
             onEnter: function (args) {
-                console.log("perform_tpdu_decryption called! a_hQQClt: " + args[0])
+                console.log("perform_tpdu_decryption called! apiHandle: " + args[0])
                 //Thread.sleep(1000);
 
                 // Disable encryption (TCONN_SEC_NONE = 0)
@@ -92,11 +91,11 @@ def main():
 
                 
                 // int __cdecl perform_tpdu_decryption(
-                //    tagTQQApiHandle *a_hQQClt,
-                //    char *a_pszInBuf,
-                //    unsigned int a_piInLen,
-                //    void **a_pszOutBuf,
-                //    unsigned int *a_piOutLen,
+                //    TQQApiHandle *apiHandle,
+                //    char *inputBuffer,
+                //    unsigned int inputBufferLength,
+                //    void **outputBuffer,
+                //    unsigned int *outputBufferLength,
                 //    int is_TPDU_CMD_PLAIN,
                 //    int allow_unencrypted_packets)
                 console.log("args[0]: " + args[0]);
@@ -119,7 +118,7 @@ def main():
 
         Interceptor.attach(protocalHandlerMod.base.add(ptr(0x73bb0)), {
             onEnter: function (args) {
-                console.log("perform_tpdu_encryption called! a_hQQClt: " + args[0])
+                console.log("perform_tpdu_encryption called! apiHandle: " + args[0])
                 //Thread.sleep(1000);
 
                 // Disable encryption (TCONN_SEC_NONE = 0)
@@ -128,12 +127,12 @@ def main():
                 encryption_mode_addr.writeU32(0)
                 console.log("mode: " + encryption_mode_addr.readU32())
 
-                // int __cdecl tagTQQApiHandle__perform_tpdu_encryption(
-                //     tagTQQApiHandle *a_hQQClt,
-                //     void *a_pszInBuf,
-                //     signed int a_piInLen,
-                //     void **a_pszOutBuf,
-                //     signed int *a_piOutLen,
+                // int __cdecl TQQApiHandle__perform_tpdu_encryption(
+                //     TQQApiHandle *apiHandle,
+                //     void *inputBuffer,
+                //     signed int inputBufferLength,
+                //     void **outputBuffer,
+                //     signed int *outputBufferLength,
                 //     int allow_unencrypted
                 // )
                 console.log("args[0]: " + args[0]);
@@ -173,13 +172,13 @@ def main():
         });
     }
 
-    function waitForModuleToLoad(){
+    function waitForCryGameDLL(){
         try{
             cryGameMod = Process.getModuleByName(cryGameModName);
         }
         catch(err) {
             //console.log("Waiting for " + cryGameModName);
-            setTimeout(waitForModuleToLoad, 20);
+            setTimeout(waitForCryGameDLL, 20);
             return;
         }
 
@@ -195,8 +194,6 @@ def main():
         console.log("Module is now unpacked.");
         hookCryGame();
     }
-
-
 
     function hookCryGame() {
         Interceptor.attach(cryGameMod.base.add(addr_start_do_connect_svr), {
@@ -220,11 +217,11 @@ def main():
 
         Interceptor.attach(cryGameMod.base.add(ptr(0x121A1B0)), get_call_logger("crygame.dll!report_analytics", cryGameMod.base));
 
-        Interceptor.attach(cryGameMod.base.add(ptr(0x4a5b0)), get_call_logger("crygame.dll!tsocket_send", cryGameMod.base));
-        Interceptor.attach(cryGameMod.base.add(ptr(0x49b90)), get_call_logger("crygame.dll!tnet_send", cryGameMod.base));
-        Interceptor.attach(cryGameMod.base.add(ptr(0x4a730)), get_call_logger("crygame.dll!tsocket_sendall", cryGameMod.base));
-        Interceptor.attach(cryGameMod.base.add(ptr(0x4A960)), get_call_logger("crygame.dll!tsocket_recv", cryGameMod.base));
-        Interceptor.attach(cryGameMod.base.add(ptr(0x4AAF0)), get_call_logger("crygame.dll!tsocket_recvall", cryGameMod.base));
+        Interceptor.attach(cryGameMod.base.add(ptr(0x4a5b0)), get_call_logger("crygame.dll!socket_send", cryGameMod.base));
+        Interceptor.attach(cryGameMod.base.add(ptr(0x49b90)), get_call_logger("crygame.dll!net_send", cryGameMod.base));
+        Interceptor.attach(cryGameMod.base.add(ptr(0x4a730)), get_call_logger("crygame.dll!socket_sendall", cryGameMod.base));
+        Interceptor.attach(cryGameMod.base.add(ptr(0x4A960)), get_call_logger("crygame.dll!socket_recv", cryGameMod.base));
+        Interceptor.attach(cryGameMod.base.add(ptr(0x4AAF0)), get_call_logger("crygame.dll!socket_recvall", cryGameMod.base));
 
         Interceptor.attach(cryGameMod.base.add(ptr(0x4570f0)), get_call_logger("crygame.dll!CSPkg::deserialize", cryGameMod.base));
         Interceptor.attach(cryGameMod.base.add(ptr(0x4202a0)), get_call_logger("crygame.dll!CSPkgHead::deserialize", cryGameMod.base));
@@ -232,17 +229,6 @@ def main():
         Interceptor.attach(cryGameMod.base.add(ptr(0x10c800)), get_call_logger("crygame.dll!TdrBuf::read_i16", cryGameMod.base));
 
         
-
-        /*
-        Interceptor.attach(cryGameMod.base.add(ptr(0xd60116)), {
-            onEnter: function (args) {
-                console.log("(ret:" + this.returnAddress.toString() + ") " + "url getter thing called");
-                console.log(this.context.eax.toString())
-            },
-            onLeave: function (retval) {
-            }
-        });
-        */
     }
 
     """)
