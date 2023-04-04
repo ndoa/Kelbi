@@ -18,13 +18,14 @@ def on_message(message, data):
 
 def main():
     # Attach to the process
+    # -q 946282264 -src=tgp -game_id 45 -area 1 -zone_id 16909332
     pID = frida.spawn(
-        [r"C:\Program Files\TencentGame\Monster Hunter Online\Bin\Client\Bin32\MHOClient.exe", r"-q 946282264 -src=tgp -game_id 45 -area 1 -zone_id 16909332"])
+        [r"C:\Program Files\TencentGame\Monster Hunter Online\Bin\Client\Bin32\MHOClient.exe", r"qos_id=food -q -loginqq=1234567890123456789"])
     session = frida.attach(pID)
 
     # Create our JS injected script:
     script = session.create_script("""
-
+    /*
     function readIP(addr) {
         let a0 = addr.add(0).readU8();
         let a1 = addr.add(1).readU8();
@@ -67,73 +68,71 @@ def main():
         onLeave: function (retval) {
         }
     });
+    */
 
 
 
 
-
+    function get_call_logger(name, modBase) {
+        let idaBase = ptr(0xa7a0000);
+        return {
+            onEnter: function (args) {
+                console.log("(ret:" + this.returnAddress.toString() + ", IDA-ret:" + this.returnAddress.sub(modBase).add(idaBase).toString() + ") " + name + " called");
+            }
+        };
+    }
 
 
     
-    let modName = "CryGame.dll";
+    let serverUrl = "127.0.0.1:8142"
+    let cryGameModName = "CryGame.dll";
     let cryGameMod;
     const addr_start_do_connect_svr = ptr(0x457800); //ptr(0xABF7800); 
     const addr_CClientLogic_ConnectServer = ptr(0x11a8bd0);
 
-    waitForModuleToLoad();
-    function waitForModuleToLoad(){
+    let protocalHandlerModName = "ProtocalHandler.dll";
+    let protocalHandlerMod;
+    const addr_select_rev_sub = ptr(0x83f50);
+
+    waitForCryGameModule();
+    function waitForCryGameModule(){
         try{
             cryGameMod = Process.getModuleByName(modName);
         }
         catch(err) {
             //console.log("Waiting for " + modName);
-            setTimeout(waitForModuleToLoad, 20);
+            setTimeout(waitForCryGameModule, 20);
             return;
         }
 
         console.log("Got " + modName);
-        waitForModuleUnpack();
+        waitForCryGameModuleUnpack();
     }
 
-    function waitForModuleUnpack() {
+    function waitForCryGameModuleUnpack() {
         if(cryGameMod.base.add(addr_start_do_connect_svr).readU8() != 0x55) {
-            setTimeout(waitForModuleUnpack, 50);
+            setTimeout(waitForCryGameModuleUnpack, 50);
             return;
         }
         console.log("Module is now unpacked.");
         hookCryGame();
     }
 
-    function get_call_logger(name) {
-        let idaBase = ptr(0xa7a0000);
-        return {
-            onEnter: function (args) {
-                console.log("(ret:" + this.returnAddress.toString() + ", IDA-ret:" + this.returnAddress.sub(cryGameMod.base).add(idaBase).toString() + ") " + name + " called");
-            }
-        };
-    }
-
     function hookCryGame() {
-        /*
         Interceptor.attach(cryGameMod.base.add(addr_start_do_connect_svr), {
             onEnter: function (args) {
-                console.log("(ret:" + this.returnAddress.toString() + ") " + "start_do_connect_svr called");
-                console.log("stack_ptr_arg(esp+4, url):", this.context.sp.add(4));
-
-                let newUrlPtr = Memory.allocUtf8String("mho.ando.fyi:8080");
-                this.newUrlPtr = newUrlPtr;
+                let newUrlPtr = Memory.allocUtf8String(serverUrl);
                 this.context.sp.add(4).writePointer(newUrlPtr);
-                console.log("stack_ptr_arg(esp+4, url):", this.context.sp.add(4));
-                console.log("stack_ptr_arg(esp+4, url):", this.context.sp.add(4).readPointer().readCString());
-                //Thread.sleep(50000);
 
-            },
-            onLeave: function (retval) {
+                // Strings allocated with allocUtf8String will only live until V8 garbage collects
+                // the JS objects. To prevent this from being garbage collected, we attach it to
+                // the hook object which is attached to the lifetime of the current thread: 
+                this._url_lifetime_holder = newUrlPtr;
             }
         });
-        */
 
-        Interceptor.attach(cryGameMod.base.add(addr_CClientLogic_ConnectServer), get_call_logger("CClientLogic_ConnectServer"));
+        Interceptor.attach(cryGameMod.base.add(addr_CClientLogic_ConnectServer), get_call_logger("CClientLogic_ConnectServer", cryGameMod.base));
+
 
         Interceptor.attach(cryGameMod.base.add(ptr(0xd60116)), {
             onEnter: function (args) {
@@ -143,6 +142,17 @@ def main():
             onLeave: function (retval) {
             }
         });
+
+        /*
+        Interceptor.attach(cryGameMod.base.add(ptr(0xd60116)), {
+            onEnter: function (args) {
+                console.log("(ret:" + this.returnAddress.toString() + ") " + "url getter thing called");
+                console.log(this.context.eax.toString())
+            },
+            onLeave: function (retval) {
+            }
+        });
+        */
     }
 
     """)
