@@ -1,0 +1,208 @@
+<?xml version="1.0" encoding="UTF8" standalone="yes" ?>
+<metalib tagsetversion="1" name="tlogdef" version="2">
+	<macro name="TLOG_VEC_FILTER" value="32" />
+	<macro name="TLOGFILE_PATTERN_LEN" value="128" />
+	<macro name="TLOGNET_URL_LEN" value="128" />
+	<macro name="TLOGNET_DEF_TIMEOUT" value="2000" />
+	<macro name="TLOGVEC_MAX_ELEMENT" value="32" />
+	<macro name="TLOGMEM_STRING_LEN" value="256" />
+	<macro name="TLOGMEM_MIN_SIZE" value="10000000" desc="10M" />
+	<macro name="TLOGBIN_VER" value="1" />
+	<macro name="TLOGBIN_MAGIC" value="55" />
+	<macro name="TLOGBIN_ID_BASE" value="1" />
+	<macro name="TLOGBIN_ID_HEAD" value="2" />
+	<macro name="TLOGBIN_ID_PKG" value="3" />
+	<macro name="TLOGBIN_MAX_DATA" value="64000" />
+	<macro name="TLOG_NAME_LEN" value="64" />
+	<macro name="TLOG_FORMAT_LEN" value="128" />
+	<macro name="TLOG_DEFAULT_MAX_MSG_SIZE" value="8192" />
+	<macro name="TLOG_MAX_CATEGORY" value="128" />
+	<macro name="TLOG_CONF_MAGIC" value="1548" />
+	<macrosgroup name="TLOG_DATA">
+		<macro name="TLOG_DATA_TXT" value="0" />
+		<macro name="TLOG_DATA_BIN" value="1" />
+	</macrosgroup>
+	<macrosgroup name="TLOG_PRIORITY">
+		<macro name="TLOG_PRIORITY_NULL" value="-1" />
+		<macro name="TLOG_PRIORITY_FATAL" value="0" />
+		<macro name="TLOG_PRIORITY_ALERT" value="100" />
+		<macro name="TLOG_PRIORITY_CRIT" value="200" />
+		<macro name="TLOG_PRIORITY_ERROR" value="300" />
+		<macro name="TLOG_PRIORITY_WARN" value="400" />
+		<macro name="TLOG_PRIORITY_NOTICE" value="500" />
+		<macro name="TLOG_PRIORITY_INFO" value="600" />
+		<macro name="TLOG_PRIORITY_DEBUG" value="700" />
+		<macro name="TLOG_PRIORITY_TRACE" value="800" />
+		<macro name="TLOG_PRIORITY_NOTSET" value="900" />
+		<macro name="TLOG_PRIORITY_UNKNOWN" value="1000" />
+	</macrosgroup>
+	<macrosgroup name="TLOG_DEV">
+		<macro name="TLOG_DEV_NO" value="0" />
+		<macro name="TLOG_DEV_FILE" value="1" />
+		<macro name="TLOG_DEV_NET" value="2" />
+		<macro name="TLOG_DEV_MEM" value="3" />
+		<macro name="TLOG_DEV_TERM" value="4" />
+		<macro name="TLOG_DEV_VEC" value="16" />
+	</macrosgroup>
+	<macrosgroup name="TLOG_TERM">
+		<macro name="TLOG_TERM_STDERR" value="0" />
+		<macro name="TLOG_TERM_STDOUT" value="1" />
+	</macrosgroup>
+	<struct name="IntFilter" version="1">
+		<entry name="Start" type="uint"/>
+		<entry name="Count" type="uint"/>
+		<entry name="Mod" type="short"/>
+		<entry name="Res" type="short" io="noio"/>
+		<entry name="ModStart" type="short"/>
+		<entry name="ModCount" type="short"/>
+	</struct>
+
+	<struct name="TLOGFilter" version="1">
+		<entry name="IDFilter" type="IntFilter"/>
+		<entry name="ClsFilter" type="IntFilter"/>
+	</struct>
+
+	<struct name="TLOGFilterVec" version="1">
+		<entry name="Count" type="int" default="0"/>
+		<entry name="Filters" type="TLOGFilter" count="TLOG_VEC_FILTER" refer="Count"/>
+	</struct>
+
+	<struct name="TLOGDevFile" version="1">
+		<entry name="Pattern" type="string" size="TLOGFILE_PATTERN_LEN" sizeinfo="int"/>
+		<entry name="BuffSize" type="int"/>
+		<entry name="SizeLimit" type="uint" default="10000000"/>
+		<entry name="Precision" type="int"/>
+		<entry name="MaxRotate" type="int"/>
+		<entry name="SyncTime" type="int"/>
+		<entry name="NoFindLatest" type="int"/>
+		<entry name="RotateStick" type="int"/>
+		<entry name="DropBinaryHead" type="int" version="2" default="0"/>
+	</struct>
+
+	<struct name="TLOGDevNet" version="1">
+		<entry name="Url" type="string" size="TLOGNET_URL_LEN" sizeinfo="int"/>
+		<entry name="BuffSize" type="int"/>
+		<entry name="SendBuff" type="int"/>
+		<entry name="RecvBuff" type="int"/>
+		<entry name="AutoReconnect" type="int"/>
+		<entry name="MaxRetry" type="int"/>
+		<entry name="ConnTimeout" type="int"/>
+		<entry name="SendTimeout" type="int"/>
+	</struct>
+
+	<union name="TLOGDevFileOrNet" version="1">
+		<entry name="File" type="TLOGDevFile" id="TLOG_DEV_FILE"/>
+		<entry name="Net" type="TLOGDevNet" id="TLOG_DEV_NET"/>
+	</union>
+
+	<struct name="TLOGDevElement" version="1">
+		<entry name="ID" type="int"/>
+		<entry name="Ctrl" type="int"/>
+		<entry name="FilterVec" type="TLOGFilterVec"/>
+		<entry name="Type" type="int" bindmacrosgroup="TLOG_DEV"/>
+		<entry name="Device" type="TLOGDevFileOrNet" select="Type"/>
+	</struct>
+
+	<struct name="TLOGDevVec" version="1">
+		<entry name="Inst" type="int"/>
+		<entry name="Count" type="int"/>
+		<entry name="Elements" type="TLOGDevElement" count="TLOGVEC_MAX_ELEMENT" refer="Count"/>
+	</struct>
+
+	<struct name="TLOGDevTerm" version="1">
+		<entry name="StdType" type="int" default="0" bindmacrosgroup="TLOG_TERM"/>
+	</struct>
+
+	<struct name="TLOGDevMem" version="1">
+		<entry name="enable" type="int" desc="0:disable memlog !0 enable memlog" default="0"/>
+		<entry name="uri" type="string" size="TLOGMEM_STRING_LEN" sizeinfo="int"/>
+		<entry name="BuffSize" type="int" default="10000000"/>
+		<entry name="Pattern" type="string" size="TLOGMEM_STRING_LEN" default="tlogmem" sizeinfo="int"/>
+		<entry name="SizeLimit" type="uint" default="10000000"/>
+	</struct>
+
+	<union name="TLOGDevSelector" version="1">
+		<entry name="File" type="TLOGDevFile" id="TLOG_DEV_FILE"/>
+		<entry name="Net" type="TLOGDevNet" id="TLOG_DEV_NET"/>
+		<entry name="Mem" type="TLOGDevMem" id="TLOG_DEV_MEM"/>
+		<entry name="Term" type="TLOGDevTerm" version="2" id="TLOG_DEV_TERM"/>
+		<entry name="Vec" type="TLOGDevVec" id="TLOG_DEV_VEC"/>
+	</union>
+
+	<struct name="TLOGDevAny" version="1">
+		<entry name="Type" type="int" bindmacrosgroup="TLOG_DEV"/>
+		<entry name="Device" type="TLOGDevSelector" select="Type"/>
+	</struct>
+
+	<struct name="TLOGBinFilter" version="1">
+		<entry name="StartTime" type="int"/>
+		<entry name="LastSec" type="int"/>
+		<entry name="ID" type="IntFilter"/>
+		<entry name="Cls" type="IntFilter"/>
+		<entry name="Inst" type="int"/>
+	</struct>
+
+	<struct name="TLOGBinTime" version="1">
+		<entry name="sec" type="int"/>
+		<entry name="usec" type="int"/>
+	</struct>
+
+	<struct name="TLOGBinBase" version="1" id="TLOGBIN_ID_BASE">
+		<entry name="Ver" type="char"/>
+		<entry name="Magic" type="char"/>
+		<entry name="Cmd" type="char"/>
+		<entry name="HeadLen" type="char"/>
+		<entry name="BodyLen" type="int"/>
+		<entry name="Time" type="TLOGBinTime"/>
+		<entry name="Seq" type="int"/>
+		<entry name="ID" type="uint"/>
+		<entry name="Cls" type="uint"/>
+		<entry name="Type" type="int"/>
+		<entry name="BodyVer" type="int"/>
+		<entry name="CheckSum" type="int"/>
+	</struct>
+
+	<struct name="TLOGBinHead" version="1" id="TLOGBIN_ID_HEAD">
+		<entry name="Ver" type="char"/>
+		<entry name="Magic" type="char"/>
+		<entry name="Cmd" type="char"/>
+		<entry name="HeadLen" type="char"/>
+		<entry name="BodyLen" type="int"/>
+		<entry name="Time" type="TLOGBinTime"/>
+		<entry name="Seq" type="int"/>
+		<entry name="ID" type="uint"/>
+		<entry name="Cls" type="uint"/>
+		<entry name="Type" type="int"/>
+		<entry name="BodyVer" type="int"/>
+		<entry name="CheckSum" type="int"/>
+	</struct>
+
+	<struct name="TLOGBinPkg" version="1" id="TLOGBIN_ID_PKG">
+		<entry name="Head" type="TLOGBinHead"/>
+		<entry name="Data" type="char" count="TLOGBIN_MAX_DATA" refer="Head.BodyLen"/>
+	</struct>
+
+	<struct name="TLOGCategory" version="1">
+		<entry name="Name" type="string" size="TLOG_NAME_LEN" default="default" sizeinfo="int"/>
+		<entry name="PriorityHigh" type="int" default="-1" bindmacrosgroup="TLOG_PRIORITY"/>
+		<entry name="PriorityLow" type="int" default="-1" bindmacrosgroup="TLOG_PRIORITY"/>
+		<entry name="Filter" type="TLOGFilterVec"/>
+		<entry name="LevelDispatch" type="int" default="0"/>
+		<entry name="MustSucc" type="int" default="0"/>
+		<entry name="MaxMsgSize" type="int" default="8192"/>
+		<entry name="Format" type="string" size="TLOG_FORMAT_LEN" default="[%d.%u][%h][(%f:%l) (%F)][%M][%p] %m%n" sizeinfo="int"/>
+		<entry name="ForwardCat" type="string" size="TLOG_FORMAT_LEN" default="" sizeinfo="int"/>
+		<entry name="Device" type="TLOGDevAny"/>
+	</struct>
+
+	<struct name="TLOGConf" version="1">
+		<entry name="Magic" type="int" version="2" default="1548"/>
+		<entry name="PriorityHigh" type="int" default="-1" bindmacrosgroup="TLOG_PRIORITY"/>
+		<entry name="PriorityLow" type="int" default="-1" bindmacrosgroup="TLOG_PRIORITY"/>
+		<entry name="DelayInit" type="int"/>
+		<entry name="SuppressError" type="int"/>
+		<entry name="Count" type="int"/>
+		<entry name="CategoryList" type="TLOGCategory" count="TLOG_MAX_CATEGORY" refer="Count"/>
+	</struct>
+
+</metalib>

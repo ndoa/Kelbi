@@ -1,0 +1,259 @@
+<?xml version="1.0" encoding="UTF8" standalone="yes" ?>
+<metalib tagsetversion="1" name="tqqapi" version="14">
+	<macro name="TQQ_KEY_LEN" value="16" />
+	<macro name="TQQ_MAX_NAME_LEN" value="32" />
+	<macro name="TQQ_MAX_IDENT_LEN" value="16" />
+	<macro name="TQQ_MAX_SIGN_LEN" value="128" />
+	<macro name="TQQ_MAX_SIGN2_LEN" value="64" />
+	<macro name="TQQ_IDENT_LEN" value="16" />
+	<macro name="TQQ_MAX_USERIDENT_LEN" value="64" />
+	<macro name="TQQ_SVCBITMAP_LEN" value="12" />
+	<macro name="TQQ_SVCBITMAP_EXT_LEN" value="8" />
+	<macro name="TQQ_UNIFIED_MAX_SIGN_LEN" value="256" />
+	<macro name="TQQ_UNIFIED_MAX_ENCSIGN_LEN" value="128" />
+	<macro name="TQQ_UNIFIED_MAX_ENCSIGN2_LEN" value="32" />
+	<macro name="TQQ_UNIFIED_CUSTOMINFO_LEN" value="32" />
+	<macro name="TPDU_MAX_ENCRYPTSKEY_LEN" value="128" />
+	<macro name="TPDU_MAX_ENCRYPTIDENT_LEN" value="64" />
+	<macro name="TPDU_MAX_ENCRYPTSYN_LEN" value="128" />
+	<macro name="TPDU_MAX_ENCRYPTSYNACK_LEN" value="128" />
+	<macro name="TPDU_MAX_MIBAOBUFFER_LEN" value="4096" />
+	<macro name="TPDU_MAGIC" value="85" desc="协议magic" />
+	<macro name="TPDU_VERSION" value="14" desc="客户端协议版本" />
+	<macrosgroup name="TCONN_SEC_ENC">
+		<macro name="TCONN_SEC_NONE" value="0" />
+		<macro name="TCONN_SEC_TEA" value="1" />
+		<macro name="TCONN_SEC_QQ" value="2" />
+		<macro name="TCONN_SEC_AES" value="3" />
+		<macro name="TCONN_SEC_AES2" value="4" desc="与TCONN_SEC_AES算法不同的是修改了数据填充算法" />
+	</macrosgroup>
+	<macrosgroup name="TCONN_SEC_AUTH">
+		<macro name="TCONN_SEC_AUTH_NONE" value="0" />
+		<macro name="TCONN_SEC_AUTH_QQV1" value="1" />
+		<macro name="TCONN_SEC_AUTH_QQV2" value="2" />
+		<macro name="TCONN_SEC_AUTH_QQUNIFIED" value="3" />
+	</macrosgroup>
+	<macrosgroup name="TPDU_CMD">
+		<macro name="TPDU_CMD_NONE" value="0" desc="通信包" />
+		<macro name="TPDU_CMD_CHGSKEY" value="1" desc="交换密钥(下行)" />
+		<macro name="TPDU_CMD_QUEINFO" value="2" desc="排队信息(下行)" />
+		<macro name="TPDU_CMD_AUTH" value="3" desc="签名请求信息(上行)" />
+		<macro name="TPDU_CMD_IDENT" value="4" desc="连接建立(下行)" />
+		<macro name="TPDU_CMD_PLAIN" value="5" desc="未加密通信包(下行)" />
+		<macro name="TPDU_CMD_RELAY" value="6" desc="重连请求信息(上行)" />
+		<macro name="TPDU_CMD_STOP" value="7" desc="服务器断开连接下发错误码" />
+		<macro name="TPDU_CMD_SYN" value="8" desc="连接握手信息(下行)" />
+		<macro name="TPDU_CMD_SYNACK" value="9" desc="三次握手请求(上行)" />
+		<macro name="TPDU_CMD_MBA_QUERYRSP" value="10" desc="查询密保返回结果(下行)" />
+		<macro name="TPDU_CMD_MBA_VERIFYREQ" value="11" desc="验证密保请求(上行)" />
+		<macro name="TPDU_CMD_MBA_VERIFYRSP" value="12" desc="下发密保问题检验结果(下行)" />
+		<macro name="TPDU_CMD_CLOSE" value="13" desc="客户端关闭连接通知消息(上行)" />
+		<macro name="TPDU_CMD_CLIENT_ADDR" value="210" desc="TGC发送的客户端真实地址消息(上行)" />
+	</macrosgroup>
+	<macrosgroup name="TPDU_RELAY_TYPE" desc="重连类型">
+		<macro name="TPDU_JUMP_SERVER_RELAY" value="1" desc="跨服跳转" />
+		<macro name="TPDU_NETWORK_FAILURE_RELAY" value="2" desc="断线重连" />
+		<macro name="TPDU_CLIENT_CRASH_RELAY" value="3" desc="保留值" />
+	</macrosgroup>
+	<macrosgroup name="TPDU_STOP_REASON" desc="tconnd内部逻辑断开连接下发的错误码">
+		<macro name="TPDU_REASON_NONE" value="0" desc="success" />
+		<macro name="TPDU_REASON_IDLE_CLOSE" value="1" desc="连接空闲关闭" />
+		<macro name="TPDU_REASON_BAD_PKGLEN" value="4" desc="请求包长度异常关闭" />
+		<macro name="TPDU_REASON_EXCEED_LIMIT" value="5" desc="客户端发送速度超过限制" />
+		<macro name="TPDU_REASON_SELF_CLOSE" value="7" desc="逻辑服务器主动下发关闭" />
+		<macro name="TPDU_REASON_AUTH_FAIL" value="8" desc="客户端连接签名验证失败" />
+		<macro name="TPDU_REASON_REASON_SYNACK_FAIL" value="9" desc="客户端三次握手验证失败" />
+		<macro name="TPDU_REASON_SEQUENCE_INVALID" value="11" desc="上行包序列号非法" />
+		<macro name="TPDU_REASON_RELAY_FAIL" value="14" desc="客户端重连失败" />
+		<macro name="TPDU_REASON_MBA_FAIL" value="15" desc="密保处理失败" />
+		<macro name="TPDU_REASON_MBA_TIMEOUT" value="16" desc="密保返回应答超时" />
+		<macro name="TPDU_REASON_REACH_LIMIT" value="100" desc="连接已达到服务器允许上限" />
+	</macrosgroup>
+	<struct name="TQQGameSig" version="10" desc="0x82签名第一段">
+		<entry name="GameKey" type="char" count="TQQ_KEY_LEN"/>
+		<entry name="SvcBitmap" type="char" count="TQQ_SVCBITMAP_LEN"/>
+		<entry name="SvcBitmapExt" type="char" count="TQQ_SVCBITMAP_EXT_LEN"/>
+		<entry name="ValidateBitmap" type="uint"/>
+		<entry name="Uin" type="uint"/>
+		<entry name="Time" type="uint"/>
+		<entry name="UinFlag" type="uint"/>
+		<entry name="ClientIP" type="uint" version="12" desc="客户端IP"/>
+	</struct>
+
+	<struct name="TQQSigForS2" version="10" desc="0x82签名第二段,一般不用">
+		<entry name="Type" type="tinyint"/>
+		<entry name="ValidateBitmap" type="uint"/>
+		<entry name="Uin" type="uint"/>
+		<entry name="Time" type="uint"/>
+		<entry name="CltIP" type="uint"/>
+	</struct>
+
+	<struct name="TQQUserIdent" version="10" desc="重连验证字段">
+		<entry name="Uin" type="uint"/>
+		<entry name="Pos" type="int"/>
+		<entry name="Ident" type="char" count="TQQ_IDENT_LEN"/>
+	</struct>
+
+	<struct name="TQQAuthInfo" version="10" desc="0X82签名协议">
+		<entry name="Uin" type="uint"/>
+		<entry name="SignLen" type="tinyuint"/>
+		<entry name="SignData" type="tinyuint" count="TQQ_MAX_SIGN_LEN" refer="SignLen"/>
+		<entry name="Sign2Len" type="tinyuint"/>
+		<entry name="Sign2Data" type="tinyuint" count="TQQ_MAX_SIGN2_LEN" desc="一般不用" refer="Sign2Len"/>
+	</struct>
+
+	<struct name="TQQUnifiedSig" version="10" desc="0XDE签名协议格式">
+		<entry name="Version" type="short"/>
+		<entry name="Time" type="uint"/>
+		<entry name="EncryptSignLen" type="short"/>
+		<entry name="EncryptSignData" type="tinyuint" count="TQQ_UNIFIED_MAX_ENCSIGN_LEN" refer="EncryptSignLen"/>
+	</struct>
+
+	<struct name="TQQUnifiedEncrySig" version="10" desc="0xDE签名协议加密部分">
+		<entry name="Random" type="int"/>
+		<entry name="Version" type="short" default="1"/>
+		<entry name="uin" type="uint"/>
+		<entry name="Time" type="uint"/>
+		<entry name="SSOver" type="uint"/>
+		<entry name="AppID" type="int"/>
+		<entry name="AppClientVer" type="int"/>
+		<entry name="ClientIP" type="uint"/>
+		<entry name="SessionKey" type="tinyuint" count="TQQ_KEY_LEN"/>
+		<entry name="UnifiedSig2Len" type="short"/>
+		<entry name="UnifiedSig2" type="tinyuint" count="TQQ_UNIFIED_MAX_ENCSIGN2_LEN" refer="UnifiedSig2Len"/>
+		<entry name="CustomInfoLen" type="short"/>
+		<entry name="CustomInfoData" type="tinyuint" count="TQQ_UNIFIED_CUSTOMINFO_LEN" refer="CustomInfoLen"/>
+	</struct>
+
+	<struct name="TQQUnifiedAuthInfo" version="10" desc="0XDE签名协议">
+		<entry name="Uin" type="uint"/>
+		<entry name="Len" type="tinyuint"/>
+		<entry name="SigInfo" type="tinyuint" count="TQQ_UNIFIED_MAX_SIGN_LEN" refer="Len"/>
+	</struct>
+
+	<struct name="TPDUExtChgSkey" version="10" desc="交换密钥">
+		<entry name="Type" type="short" desc="默认填零"/>
+		<entry name="Len" type="short" desc="密钥长度(密文)"/>
+		<entry name="EncryptSkey" type="tinyint" count="TPDU_MAX_ENCRYPTSKEY_LEN" refer="Len"/>
+	</struct>
+
+	<struct name="TPDUExtQueInfo" version="10" desc="排队信息">
+		<entry name="Pos" type="int" desc="在队列中位置"/>
+		<entry name="Max" type="int" desc="队列的长度"/>
+		<entry name="WaitTime" type="int" version="13" desc="预计排队等待时间,单位秒"/>
+	</struct>
+
+	<union name="TPDUExtAuthData" version="10" desc="签名数据">
+		<entry name="AuthQQV1" type="TQQAuthInfo" id="TCONN_SEC_AUTH_QQV1" desc="0x82协议"/>
+		<entry name="AuthQQV2" type="TQQAuthInfo" id="TCONN_SEC_AUTH_QQV2" desc="0x82协议"/>
+		<entry name="AuthQQUnified" type="TQQUnifiedAuthInfo" id="TCONN_SEC_AUTH_QQUNIFIED" desc="0XDE协议"/>
+	</union>
+
+	<struct name="TPDUExtAuthInfo" version="10" desc="签名请求包">
+		<entry name="EncMethod" type="int" version="11" desc="通信加解密类型" bindmacrosgroup="TCONN_SEC_ENC"/>
+		<entry name="ServiceID" type="int" version="12" desc="游戏ID " default="0"/>
+		<entry name="AuthType" type="int" desc="签名类型" bindmacrosgroup="TCONN_SEC_AUTH"/>
+		<entry name="AuthData" type="TPDUExtAuthData" desc="签名数据" select="AuthType"/>
+	</struct>
+
+	<struct name="TPDUIdentInfo" version="10" desc="连接建立包">
+		<entry name="Pos" type="int" desc="连接索引和验证字符串可以保存为以后的重连"/>
+		<entry name="Ident" type="char" count="TQQ_IDENT_LEN" desc="连接验证字符串"/>
+	</struct>
+
+	<struct name="TPDUExtIdent" version="10">
+		<entry name="Len" type="int" desc="连接建立包信息长度(密文)"/>
+		<entry name="EncryptIdent" type="tinyint" count="TPDU_MAX_ENCRYPTIDENT_LEN" refer="Len"/>
+	</struct>
+
+	<struct name="TPDUExtRelay" version="10" desc="重连请求包">
+		<entry name="EncMethod" type="int" version="11" desc="通信加解密类型" bindmacrosgroup="TCONN_SEC_ENC"/>
+		<entry name="RelayType" type="int" desc="重连类型" bindmacrosgroup="TPDU_RELAY_TYPE"/>
+		<entry name="OldPos" type="int" desc="占位连接索引"/>
+		<entry name="Len" type="int" desc="重连验证信息长度(密文)"/>
+		<entry name="EncryptIdent" type="tinyint" count="TPDU_MAX_ENCRYPTIDENT_LEN" refer="Len"/>
+	</struct>
+
+	<struct name="TPDUExtStop" version="10" desc="保留,暂未用">
+		<entry name="StopReason" type="int"/>
+	</struct>
+
+	<struct name="TPDUSynInfo" version="10" desc="连接握手信息">
+		<entry name="randstr" type="char" count="TQQ_IDENT_LEN"/>
+	</struct>
+
+	<struct name="TPDUExtSyn" version="10">
+		<entry name="Len" type="tinyuint" desc="连接握手信息长度(密文)"/>
+		<entry name="EncryptSynInfo" type="tinyint" count="TPDU_MAX_ENCRYPTSYN_LEN" refer="Len"/>
+	</struct>
+
+	<struct name="TPDUExtSynAck" version="10" desc="三次握手请求信息">
+		<entry name="Len" type="tinyuint" desc="握手请求信息长度(密文),结构同连接握手信息结构"/>
+		<entry name="EncryptSynInfo" type="tinyuint" count="TPDU_MAX_ENCRYPTSYNACK_LEN" refer="Len"/>
+	</struct>
+
+	<struct name="TPDUExtMiBao" version="14" desc="密保相关透传buffer,密文">
+		<entry name="Len" type="ushort" desc="buffer长度"/>
+		<entry name="MiBaoBuffer" type="tinyuint" count="TPDU_MAX_MIBAOBUFFER_LEN" refer="Len"/>
+	</struct>
+
+	<struct name="TPDUExtClientAddr" version="14" desc="客户端真实地址信息">
+		<entry name="Uin" type="uint" desc="Uin"/>
+		<entry name="IP" type="uint" desc="IP地址"/>
+		<entry name="Port" type="ushort" desc="端口"/>
+		<entry name="ExtInfo" type="char" count="128" desc="附加信息"/>
+	</struct>
+
+	<union name="TPDUExt" version="10" desc="包头扩展信息">
+		<entry name="ChgSkey" type="TPDUExtChgSkey" id="TPDU_CMD_CHGSKEY"/>
+		<entry name="QueInfo" type="TPDUExtQueInfo" id="TPDU_CMD_QUEINFO"/>
+		<entry name="AuthInfo" type="TPDUExtAuthInfo" id="TPDU_CMD_AUTH"/>
+		<entry name="Ident" type="TPDUExtIdent" id="TPDU_CMD_IDENT"/>
+		<entry name="Relay" type="TPDUExtRelay" id="TPDU_CMD_RELAY"/>
+		<entry name="Stop" type="TPDUExtStop" id="TPDU_CMD_STOP"/>
+		<entry name="Syn" type="TPDUExtSyn" id="TPDU_CMD_SYN"/>
+		<entry name="SynAck" type="TPDUExtSynAck" id="TPDU_CMD_SYNACK"/>
+		<entry name="MbaQueryRsp" type="TPDUExtMiBao" version="14" id="TPDU_CMD_MBA_QUERYRSP"/>
+		<entry name="MbaVerifyReq" type="TPDUExtMiBao" version="14" id="TPDU_CMD_MBA_VERIFYREQ"/>
+		<entry name="MbaVerifyRsp" type="TPDUExtMiBao" version="14" id="TPDU_CMD_MBA_VERIFYRSP"/>
+		<entry name="ClientAddr" type="TPDUExtClientAddr" version="14" id="TPDU_CMD_CLIENT_ADDR"/>
+	</union>
+
+	<struct name="TPDUBase_Old" version="10" desc="version14之前基础包头信息">
+		<entry name="Magic" type="tinyuint" desc="魔数"/>
+		<entry name="Version" type="tinyuint" desc="协议版本,参考TPDU_VERSION"/>
+		<entry name="Cmd" type="tinyuint" desc="包类型"/>
+		<entry name="HeadLen" type="tinyuint" desc="包头长度"/>
+		<entry name="EncHeadLen" type="tinyuint" version="11" desc="上行包有效,包头附加信息长度,与body一起加密"/>
+		<entry name="BodyLen" type="int" desc="包体长度"/>
+	</struct>
+
+	<struct name="TPDUBase" version="10" desc="基础包头信息">
+		<entry name="Magic" type="tinyuint" desc="魔数"/>
+		<entry name="Version" type="tinyuint" desc="协议版本,参考TPDU_VERSION"/>
+		<entry name="Cmd" type="tinyuint" desc="包类型"/>
+		<entry name="EncHeadLen" type="tinyuint" version="11" desc="上行包有效,包头附加信息长度,与body一起加密"/>
+		<entry name="HeadLen" type="int" desc="包头长度"/>
+		<entry name="BodyLen" type="int" desc="包体长度"/>
+	</struct>
+
+	<struct name="TPDUHead_Old" version="10" desc="version14之前的包头" versionindicator="Base.Version" sizeinfo="Base.HeadLen">
+		<entry name="Base" type="TPDUBase_Old" desc="基础信息"/>
+		<entry name="Ext" type="TPDUExt" desc="扩展信息" select="Base.Cmd"/>
+	</struct>
+
+	<struct name="TPDUHead" version="10" desc="包头" versionindicator="Base.Version" sizeinfo="Base.HeadLen">
+		<entry name="Base" type="TPDUBase" desc="基础信息"/>
+		<entry name="Ext" type="TPDUExt" desc="扩展信息" select="Base.Cmd"/>
+	</struct>
+
+	<struct name="TPDUEncHead" version="11" desc="附加头部信息,不要定义字符串或者网络序和本地序不等的数据类型">
+		<entry name="sequence" type="uint"/>
+	</struct>
+
+	<struct name="TPDUFrame" version="10" desc="CS通信包= 明文:包头(基础信息+扩展信息)+密文:包体(附加头部信息+应用包">
+		<entry name="Head" type="TPDUHead"/>
+		<entry name="Body" type="tinyint" refer="Base.BodyLen"/>
+	</struct>
+
+</metalib>
