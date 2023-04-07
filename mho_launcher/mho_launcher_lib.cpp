@@ -1,57 +1,137 @@
 #include "mho_launcher_lib.h"
-#include "util.h"
-#include "memory_mapper.h"
 #include "memory.h"
+#include "mho_types.h"
 
 #include <windows.h>
 #include <fstream>
 #include <thread>
 #include <string>
 
-std::thread *run_thread;
-HMODULE crygame_handle;
-DWORD crygame_addr;
-HMODULE mho_client_handle;
-DWORD mho_client_addr;
+DWORD server_url_address = 0;
+
+fn_perform_tpdu_encryption org_perform_tpdu_encryption = nullptr;
+fn_perform_tpdu_decryption org_perform_tpdu_decryption = nullptr;
+fn_crygame_13EC290 org_fn_crygame_13EC290 = nullptr;
 
 
-DWORD rva_hook_svr_call_rva = 0x11A8CAE;
-DWORD rva_hook_svr_call_ret_rva = 0x11A8CB3;
-DWORD rva_hook_svr_call_fn_rva = 0xEBF60;
-DWORD abs_a = 0;
-DWORD abs_b = 0;
+int __cdecl perform_tpdu_decryption(
+        TQQApiHandle *apiHandle,
+        char *inputBuffer,
+        unsigned int inputBufferLength,
+        void **outputBuffer,
+        unsigned int *outputBufferLength,
+        int is_TPDU_CMD_PLAIN,
+        int allow_unencrypted_packets) {
 
-void svr_addr() {
-    fprintf(stdout, "svr_addr\n");
+    uint8_t *encryption_mode_addr = (uint8_t *) apiHandle + 0x84;
+    *encryption_mode_addr = 0;
+    allow_unencrypted_packets = 1;
+
+    int ret = org_perform_tpdu_decryption(apiHandle,
+                                          inputBuffer,
+                                          inputBufferLength,
+                                          outputBuffer,
+                                          outputBufferLength,
+                                          is_TPDU_CMD_PLAIN,
+                                          allow_unencrypted_packets
+    );
+    return ret;
+}
+
+int __cdecl perform_tpdu_encryption(
+        TQQApiHandle *apiHandle,
+        void *inputBuffer,
+        signed int inputBufferLength,
+        void **outputBuffer,
+        signed int *outputBufferLength,
+        int allow_unencrypted
+) {
+    uint8_t *encryption_mode_addr = (uint8_t *) apiHandle + 0x84;
+    *encryption_mode_addr = 0;
+    allow_unencrypted = 1;
+    int ret = org_perform_tpdu_encryption(apiHandle,
+                                          inputBuffer,
+                                          inputBufferLength,
+                                          outputBuffer,
+                                          outputBufferLength,
+                                          allow_unencrypted
+    );
+    return ret;
+}
+
+/**
+ * This is the first function that was easy to hook around the server connection routine.
+ * its only purpose is to alter memory at the time, right before it is used.
+ */
+void __cdecl crygame_13EC290() {
+
+    fprintf(stdout, "crygame_13EC290\n");
 
     const char *url = "127.0.0.1:8142";
-    DWORD url_addr = mho_client_addr + 0x15780C8; // RVA
-    fprintf(stdout, "url_addr: 0x%08X \n", url_addr);
-    WriteMemory((LPVOID) url_addr, url, strlen(url));
-}
-// 15780C8
-__declspec(naked) void hook_svr_addr() {
-    __asm {
-        // hook
-            pushfd
-            pushad
-            call svr_addr
-        // add esp, 4
-            popad
-            popfd
-        // end hook
-            call[abs_a]
-            jmp abs_b
-    }
+    WriteMemory((LPVOID) server_url_address, url, strlen(url));
+
+    org_fn_crygame_13EC290();
 }
 
+/**
+ * waits until crygame.dll is loaded and performs and applies patches to its memory
+ */
+void run_crygame() {
+    HMODULE crygame_handle = nullptr;
+    DWORD crygame_addr = 0;
+    fprintf(stdout, "wait for crygame... \n");
+    while (!crygame_handle) {
+        crygame_handle = GetModuleHandleA("crygame");
+        std::this_thread::sleep_for(std::chrono::milliseconds(20));
+    }
+    crygame_addr = (DWORD) crygame_handle;
+    fprintf(stdout, "got crygame_handle: %p \n", crygame_handle);
+
+    // assign original function calls
+    org_fn_crygame_13EC290 = (fn_crygame_13EC290) (crygame_addr + 0x13EC290);
+
+    // hook existing ones
+    hook_call(crygame_addr, 0x11A8BF4, &crygame_13EC290);
+}
+
+/**
+ * waits until protocalhandler.dll is loaded and performs and applies patches to its memory
+ */
+void run_protocal_handler() {
+    HMODULE protocal_handler_handle = nullptr;
+
+    fprintf(stdout, "wait for protocalhandler... \n");
+    while (!protocal_handler_handle) {
+        protocal_handler_handle = GetModuleHandleA("protocalhandler");
+        std::this_thread::sleep_for(std::chrono::milliseconds(20));
+    }
+    DWORD protocal_handler_addr = (DWORD) protocal_handler_handle;
+    fprintf(stdout, "got protocal_handler_handle: %p \n", protocal_handler_handle);
+
+    // assign original function calls
+    org_perform_tpdu_decryption = (fn_perform_tpdu_decryption) (protocal_handler_addr + 0x73DC0);
+    org_perform_tpdu_encryption = (fn_perform_tpdu_encryption) (protocal_handler_addr + 0x73bb0);
+
+    // hook existing ones
+    hook_call(protocal_handler_addr, 0x36002, &perform_tpdu_decryption);
+    hook_call(protocal_handler_addr, 0x360FE, &perform_tpdu_decryption);
+    hook_call(protocal_handler_addr, 0x74AD3, &perform_tpdu_decryption);
+    hook_call(protocal_handler_addr, 0x74F7F, &perform_tpdu_decryption);
+    hook_call(protocal_handler_addr, 0x75336, &perform_tpdu_decryption);
+    hook_call(protocal_handler_addr, 0x75508, &perform_tpdu_decryption);
+    hook_call(protocal_handler_addr, 0x75651, &perform_tpdu_decryption);
+
+    hook_call(protocal_handler_addr, 0x36FAB, &perform_tpdu_encryption);
+    hook_call(protocal_handler_addr, 0x742A2, &perform_tpdu_encryption);
+    hook_call(protocal_handler_addr, 0x74661, &perform_tpdu_encryption);
+    hook_call(protocal_handler_addr, 0x75B70, &perform_tpdu_encryption);
+    hook_call(protocal_handler_addr, 0x76069, &perform_tpdu_encryption);
+}
 
 void run() {
     fprintf(stdout, "run\n");
 
-    crygame_handle = nullptr;
-    crygame_addr = 0;
-
+    // open console
     if (TRUE == AllocConsole()) {
         FILE *nfp[3];
         freopen_s(nfp + 0, "CONOUT$", "rb", stdin);
@@ -59,37 +139,25 @@ void run() {
         freopen_s(nfp + 2, "CONOUT$", "wb", stderr);
         std::ios::sync_with_stdio();
     }
-    mho_client_handle = GetModuleHandleA("mhoclient.exe");
-    mho_client_addr = (DWORD) mho_client_handle;
+
+    // get base addr
+    HMODULE mho_client_handle = GetModuleHandleA("mhoclient.exe");
+    DWORD mho_client_addr = (DWORD) mho_client_handle;
     fprintf(stdout, "mho_client_handle: %p \n", mho_client_handle);
 
-    while (!crygame_handle) {
-        crygame_handle = GetModuleHandleA("crygame");
-        std::this_thread::sleep_for(std::chrono::milliseconds(20));
-    }
-    crygame_addr = (DWORD) crygame_handle;
-    fprintf(stdout, "crygame_handle: %p \n", crygame_handle);
+    // assign variables depending on mhoclient base
+    server_url_address = mho_client_addr + 0x15780C8; // RVA
+    fprintf(stdout, "server_url_address: 0x%08X \n", server_url_address);
 
-    // perhaps make dynamic
-    // DWORD tmp = 0;
-    // ReadMemory((LPVOID)(crygame_addr + rva_hook_svr_call_rva + 1), &tmp, 4);
-    // rva_hook_svr_call_fn_rva = (tmp & 0x000000ff) << 24 | (tmp & 0x0000ff00) << 8 | (tmp & 0x00ff0000) >> 8 | (tmp & 0xff000000) >> 24;
-    // rva_hook_svr_call_fn_rva = tmp;
-    // TODO need to calculate
-
-    fprintf(stdout, "rva_hook_svr_call_fn_rva: 0x%08X\n", rva_hook_svr_call_fn_rva);
-    hook_jmp(crygame_addr, rva_hook_svr_call_rva, &hook_svr_addr);
-
-    abs_a = crygame_addr + rva_hook_svr_call_fn_rva;
-    abs_b = crygame_addr + rva_hook_svr_call_ret_rva;
-
+    // kickoff workers
+    std::thread *run_crygame_thread = new std::thread(run_crygame);
+    std::thread *run_protocal_thread = new std::thread(run_protocal_handler);
 }
-
 
 BOOL WINAPI DllMain(HINSTANCE h_instance, DWORD fdw_reason, LPVOID lpv_reserved) {
     switch (fdw_reason) {
         case DLL_PROCESS_ATTACH:
-            run_thread = new std::thread(run);
+            new std::thread(run);
             break;
         case DLL_THREAD_ATTACH:
             break;
