@@ -1,6 +1,7 @@
 #include "mho_launcher_lib.h"
 #include "memory.h"
 #include "mho_types.h"
+#include "util.h"
 
 #include <windows.h>
 #include <fstream>
@@ -46,6 +47,10 @@ int __cdecl perform_tpdu_encryption(
         signed int *outputBufferLength,
         int allow_unencrypted
 ) {
+
+    show((uint8_t *) inputBuffer, inputBufferLength, false);
+
+
     uint8_t *encryption_mode_addr = (uint8_t *) apiHandle + 0x84;
     *encryption_mode_addr = 0;
     allow_unencrypted = 1;
@@ -56,6 +61,11 @@ int __cdecl perform_tpdu_encryption(
                                           outputBufferLength,
                                           allow_unencrypted
     );
+
+    void *out = &outputBuffer;
+    signed int outlen = *outputBufferLength;
+    show((uint8_t *) out, outlen, false);
+
     return ret;
 }
 
