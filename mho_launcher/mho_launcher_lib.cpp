@@ -62,7 +62,7 @@ int __cdecl perform_tpdu_encryption(
                                           allow_unencrypted
     );
 
-    void *out = &outputBuffer;
+    void *out = *outputBuffer;
     signed int outlen = *outputBufferLength;
     show((uint8_t *) out, outlen, false);
 
