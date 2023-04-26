@@ -10,8 +10,7 @@ import frida
 import sys
 import struct
 import binascii
-import mmap
-import time
+
 
 def on_message(message, data):
     print("[%s] => %s" % (message, data))
@@ -21,22 +20,9 @@ def main():
     # Attach to the process
     # -q 946282264 -src=tgp -game_id 45 -area 1 -zone_id 16909332
     pID = frida.spawn(
-        [r"C:\Users\nxspirit\Downloads\MHO_FullDirectory_Final\TencentGame\Monster Hunter Online\Bin\Client\Bin32\MHOClient.exe", r"qos_id=food -q -loginqq=1234567890123456789 -nosplash"])
+        [r"D:\mho\TencentGame\Monster Hunter Online\Bin\Client\Bin32\MHOClient.exe",
+         r"qos_id=food -q -loginqq=1234567890123456789 -nosplash"])
     session = frida.attach(pID)
-
-    tcls_tag_name = '{}{}'.format('TCLS_SHAREDMEMEMORY', pID)
-    # To map anonymous memory, -1 should be passed as the fileno along with the length.
-    # class mmap.mmap(fileno, length, tagname=None, access=ACCESS_DEFAULT[, offset])
-    tcls_proxy_mem = mmap.mmap(-1, 1000, tagname=tcls_tag_name, access=mmap.ACCESS_WRITE)
-    tcls_proxy_mem.write(b"Hello world!")
-
-    print(tcls_tag_name)
-    print("attach dbg now..")
-    time.sleep(4)
-    print("continue..")
-
-
-    
 
     # Create our JS injected script:
     script = session.create_script("""
@@ -49,7 +35,7 @@ def main():
         };
     }
 
-    
+
     let serverUrl = "127.0.0.1:8142"
     let cryGameModName = "CryGame.dll";
     let cryGameMod;
@@ -68,7 +54,7 @@ def main():
     console.log("waiting for crygame.dll and protocalhandler.dll");
     setTimeout(waitForCryGameDLL, 20);
     setTimeout(waitForProtocalHandlerDLL, 20);
-    
+
     function waitForProtocalHandlerDLL() {
         // Retry until we get the module.
         try{
@@ -104,7 +90,7 @@ def main():
                 encryption_mode_addr.writeU32(0)
                 console.log("mode: " + encryption_mode_addr.readU32())
 
-                
+
                 // int __cdecl perform_tpdu_decryption(
                 //    TQQApiHandle *apiHandle,
                 //    char *inputBuffer,
@@ -243,7 +229,7 @@ def main():
         Interceptor.attach(cryGameMod.base.add(ptr(0x42f6c0)), get_call_logger("crygame.dll!CSPkgBody::deserialize", cryGameMod.base));
         Interceptor.attach(cryGameMod.base.add(ptr(0x10c800)), get_call_logger("crygame.dll!TdrBuf::read_i16", cryGameMod.base));
 
-        
+
     }
 
     """)
@@ -255,11 +241,9 @@ def main():
     print("[!] Ctrl+D on UNIX, Ctrl+Z on Windows/cmd.exe to detach from instrumented program.\n\n")
     sys.stdin.read()
     session.detach()
-    tcls_proxy_mem.close()
 
 
 if __name__ == '__main__':
     main()
-
 
 # CryGame.dll+11A8D14 - FF 56 14              - call dword ptr [esi+14] ; call start_do_connect_svr

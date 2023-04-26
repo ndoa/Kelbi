@@ -4,6 +4,7 @@ import struct
 import threading
 from Packets import *
 from hexdump import hexdump
+from Crypto.Cipher import AES #pip install pycryptodome
 
 def fixed_recv(conn, n):
     b = bytearray()
@@ -22,13 +23,29 @@ class GameClient():
             TPDU_CMD.TPDU_CMD_CLOSE: self.handle_tpdu_close,
             TPDU_CMD.TPDU_CMD_NONE: self.handle_tpdu_cmd_none,
         }
+        self.enc_method = TCONN_SEC_ENC.TCONN_SEC_NONE
+        self.cipher = None
 
     def handle_tpdu_auth(self, packet):
         # Send the TPDU_CMD_SYN packet to the client.
+
+        self.enc_method = packet.Head.Ext.EncMethod
+        print("enc_method:", self.enc_method)
+        encrypt_syn_info = bytes([0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0])
+
+        if self.enc_method == TCONN_SEC_ENC.TCONN_SEC_AES.name:
+            # init aes128 cipher
+            key = b'\x01\x01\x01\x01\x01\x01\x01\x01\x01\x01\x01\x01\x01\x01\x01\x01'
+            iv = b'\x00\x01\x02\x03\x04\x05\x06\x07\x08\x09\x0A\x0B\x0C\x0D\x0E\x0F'
+            self.cipher = AES.new(key, AES.MODE_CBC, iv=iv)
+            encrypt_syn_info = bytes([1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1])
+            encrypt_syn_info = self.cipher.encrypt(encrypt_syn_info)
+            print("encrypt_syn_info:", hexdump(encrypt_syn_info))
+
+
         ext = TPDUExtSyn.build(dict(
             Len=16,
-            EncryptSynInfo=bytes(
-                [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]),
+            EncryptSynInfo=encrypt_syn_info,
         ))
 
         send_tpdu_frame(self.conn, TPDU_CMD.TPDU_CMD_SYN, ext, bytes([]))

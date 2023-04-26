@@ -13,6 +13,7 @@ DWORD server_url_address = 0;
 fn_perform_tpdu_encryption org_perform_tpdu_encryption = nullptr;
 fn_perform_tpdu_decryption org_perform_tpdu_decryption = nullptr;
 fn_crygame_13EC290 org_fn_crygame_13EC290 = nullptr;
+fn_aes_key_expansion org_aes_key_expansion = nullptr;
 
 
 int __cdecl perform_tpdu_decryption(
@@ -23,10 +24,14 @@ int __cdecl perform_tpdu_decryption(
         unsigned int *outputBufferLength,
         int is_TPDU_CMD_PLAIN,
         int allow_unencrypted_packets) {
+    fprintf(stdout, "DECRYPT - START\n");
 
-    uint8_t *encryption_mode_addr = (uint8_t *) apiHandle + 0x84;
-    *encryption_mode_addr = 0;
-    allow_unencrypted_packets = 1;
+     uint8_t *encryption_mode_addr = (uint8_t *) apiHandle + 0x84;
+    // *encryption_mode_addr = 0;
+    // allow_unencrypted_packets = 1;
+
+    fprintf(stdout, "encryption_mode_addr: %d\n", *encryption_mode_addr);
+    show((uint8_t *) inputBuffer, inputBufferLength, false);
 
     int ret = org_perform_tpdu_decryption(apiHandle,
                                           inputBuffer,
@@ -36,6 +41,13 @@ int __cdecl perform_tpdu_decryption(
                                           is_TPDU_CMD_PLAIN,
                                           allow_unencrypted_packets
     );
+
+    void *out = *outputBuffer;
+    signed int outlen = *outputBufferLength;
+    show((uint8_t *) out, outlen, false);
+
+    fprintf(stdout, "DECRYPT - END\n");
+
     return ret;
 }
 
@@ -47,13 +59,18 @@ int __cdecl perform_tpdu_encryption(
         signed int *outputBufferLength,
         int allow_unencrypted
 ) {
+    fprintf(stdout, "ENCRYPT - START\n");
 
     show((uint8_t *) inputBuffer, inputBufferLength, false);
 
 
     uint8_t *encryption_mode_addr = (uint8_t *) apiHandle + 0x84;
-    *encryption_mode_addr = 0;
-    allow_unencrypted = 1;
+    //*encryption_mode_addr = 0;
+    //allow_unencrypted = 1;
+
+    fprintf(stdout, "encryption_mode_addr: %d\n", *encryption_mode_addr);
+
+
     int ret = org_perform_tpdu_encryption(apiHandle,
                                           inputBuffer,
                                           inputBufferLength,
@@ -66,8 +83,30 @@ int __cdecl perform_tpdu_encryption(
     signed int outlen = *outputBufferLength;
     show((uint8_t *) out, outlen, false);
 
+    fprintf(stdout, "ENCRYPT - END\n");
+
     return ret;
 }
+
+
+int __cdecl aes_key_expansion(
+        void *key,
+        unsigned int key_len_bits,
+        void *expanded_key
+) {
+    fprintf(stdout, "aes_key_expansion (bits:%d)\n", key_len_bits);
+
+    unsigned int key_len_bytes = key_len_bits / 8;
+    show((uint8_t *) key, key_len_bytes, false);
+
+    int ret = org_aes_key_expansion(key, key_len_bits, expanded_key);
+    if (key_len_bits == 128) {
+        unsigned int expanded_key_len_bytes = 176;
+        show((uint8_t *) expanded_key, expanded_key_len_bytes, false);
+    }
+    return ret;
+}
+
 
 /**
  * This is the first function that was easy to hook around the server connection routine.
@@ -121,6 +160,7 @@ void run_protocal_handler() {
     // assign original function calls
     org_perform_tpdu_decryption = (fn_perform_tpdu_decryption) (protocal_handler_addr + 0x73DC0);
     org_perform_tpdu_encryption = (fn_perform_tpdu_encryption) (protocal_handler_addr + 0x73bb0);
+    org_aes_key_expansion = (fn_aes_key_expansion) (protocal_handler_addr + 0x888E0);
 
     // hook existing ones
     hook_call(protocal_handler_addr, 0x36002, &perform_tpdu_decryption);
@@ -136,6 +176,10 @@ void run_protocal_handler() {
     hook_call(protocal_handler_addr, 0x74661, &perform_tpdu_encryption);
     hook_call(protocal_handler_addr, 0x75B70, &perform_tpdu_encryption);
     hook_call(protocal_handler_addr, 0x76069, &perform_tpdu_encryption);
+
+    hook_call(protocal_handler_addr, 0x88CB0, &aes_key_expansion);
+    hook_call(protocal_handler_addr, 0x8B1E1, &aes_key_expansion);
+    hook_call(protocal_handler_addr, 0x8B50B, &aes_key_expansion);
 }
 
 void run() {
@@ -164,10 +208,15 @@ void run() {
     std::thread *run_protocal_thread = new std::thread(run_protocal_handler);
 }
 
-BOOL WINAPI DllMain(HINSTANCE h_instance, DWORD fdw_reason, LPVOID lpv_reserved) {
+BOOL WINAPI
+DllMain(HINSTANCE
+        h_instance,
+        DWORD fdw_reason, LPVOID
+        lpv_reserved) {
     switch (fdw_reason) {
         case DLL_PROCESS_ATTACH:
-            new std::thread(run);
+            new
+                    std::thread(run);
             break;
         case DLL_THREAD_ATTACH:
             break;
@@ -176,5 +225,6 @@ BOOL WINAPI DllMain(HINSTANCE h_instance, DWORD fdw_reason, LPVOID lpv_reserved)
         case DLL_PROCESS_DETACH:
             break;
     }
-    return TRUE;
+    return
+            TRUE;
 }

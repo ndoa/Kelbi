@@ -11,7 +11,7 @@ int main() {
     std::wstring mho_launcher_lib_path = get_exe_dir() + L"mho_launcher_lib.dll";
     std::string mho_dir = "C:\\Users\\nxspirit\\Downloads\\MHO_FullDirectory_Final\\TencentGame\\Monster Hunter Online\\Bin\\Client\\Bin32\\";
     std::string mho_exe = "MHOClient.exe";
-    std::string mho_arg = "-qos_id=food -q -loginqq=1234567890123456789";
+    std::string mho_arg = "-qos_id=food -q -loginqq=1234567890123456789 -nosplash";
 
     // Create Process
     STARTUPINFOA si;

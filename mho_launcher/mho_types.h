@@ -22,6 +22,12 @@ typedef int (__cdecl *fn_perform_tpdu_decryption)(
         int allow_unencrypted_packets
 );
 
+typedef int (__cdecl *fn_aes_key_expansion)(
+        void *key,
+        unsigned int key_len_bits,
+        void *expanded_key
+);
+
 typedef void(__cdecl *fn_crygame_13EC290)();
 
 #endif //MHO_LAUNCHER_MHO_TYPES_H
