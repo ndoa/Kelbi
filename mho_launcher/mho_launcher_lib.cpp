@@ -14,7 +14,8 @@ fn_perform_tpdu_encryption org_perform_tpdu_encryption = nullptr;
 fn_perform_tpdu_decryption org_perform_tpdu_decryption = nullptr;
 fn_crygame_13EC290 org_fn_crygame_13EC290 = nullptr;
 fn_aes_key_expansion org_aes_key_expansion = nullptr;
-
+fn_log_dll org_log_dll = nullptr;
+fn_log_format org_log_format = nullptr;
 
 int __cdecl perform_tpdu_decryption(
         TQQApiHandle *apiHandle,
@@ -26,7 +27,7 @@ int __cdecl perform_tpdu_decryption(
         int allow_unencrypted_packets) {
     fprintf(stdout, "DECRYPT - START\n");
 
-     uint8_t *encryption_mode_addr = (uint8_t *) apiHandle + 0x84;
+    uint8_t *encryption_mode_addr = (uint8_t *) apiHandle + 0x84;
     // *encryption_mode_addr = 0;
     // allow_unencrypted_packets = 1;
 
@@ -107,6 +108,19 @@ int __cdecl aes_key_expansion(
     return ret;
 }
 
+void __cdecl log_dll(
+        int unk,
+        size_t str_len,
+        wchar_t *str_buffer,
+        void *fmt_args
+) {
+    wchar_t *out_buffer = new wchar_t[400];
+    org_log_format(out_buffer, 400, str_buffer, fmt_args);
+    std::wstring w_log_text(out_buffer, 400);
+    std::string log_text = ws_2_s(w_log_text);
+    delete[] out_buffer;
+    fprintf(stdout, "protocalhandler::log:%s\n", log_text.c_str());
+}
 
 /**
  * This is the first function that was easy to hook around the server connection routine.
@@ -161,6 +175,8 @@ void run_protocal_handler() {
     org_perform_tpdu_decryption = (fn_perform_tpdu_decryption) (protocal_handler_addr + 0x73DC0);
     org_perform_tpdu_encryption = (fn_perform_tpdu_encryption) (protocal_handler_addr + 0x73bb0);
     org_aes_key_expansion = (fn_aes_key_expansion) (protocal_handler_addr + 0x888E0);
+    org_log_dll = (fn_log_dll) (protocal_handler_addr + 0x1703);
+    org_log_format = (fn_log_format) (protocal_handler_addr + 0x1A96);
 
     // hook existing ones
     hook_call(protocal_handler_addr, 0x36002, &perform_tpdu_decryption);
@@ -180,6 +196,33 @@ void run_protocal_handler() {
     hook_call(protocal_handler_addr, 0x88CB0, &aes_key_expansion);
     hook_call(protocal_handler_addr, 0x8B1E1, &aes_key_expansion);
     hook_call(protocal_handler_addr, 0x8B50B, &aes_key_expansion);
+
+    hook_call(protocal_handler_addr, 0x39171, &log_dll);
+    hook_call(protocal_handler_addr, 0x39141, &log_dll);
+    hook_call(protocal_handler_addr, 0x390B1, &log_dll);
+    hook_call(protocal_handler_addr, 0x390E1, &log_dll);
+    hook_call(protocal_handler_addr, 0x3910E, &log_dll);
+    hook_call(protocal_handler_addr, 0x391A1, &log_dll);
+    hook_call(protocal_handler_addr, 0x38F2E, &log_dll);
+    hook_call(protocal_handler_addr, 0x38F61, &log_dll);
+    hook_call(protocal_handler_addr, 0x38F04, &log_dll);
+    hook_call(protocal_handler_addr, 0x123F1, &log_dll);
+    hook_call(protocal_handler_addr, 0x12391, &log_dll);
+    hook_call(protocal_handler_addr, 0x123C1, &log_dll);
+    hook_call(protocal_handler_addr, 0x1CC61, &log_dll);
+    hook_call(protocal_handler_addr, 0x38FBE, &log_dll);
+    hook_call(protocal_handler_addr, 0x39021, &log_dll);
+    hook_call(protocal_handler_addr, 0x38F91, &log_dll);
+    hook_call(protocal_handler_addr, 0x3907E, &log_dll);
+    hook_call(protocal_handler_addr, 0x208D1, &log_dll);
+    hook_call(protocal_handler_addr, 0x39051, &log_dll);
+    hook_call(protocal_handler_addr, 0x38FF1, &log_dll);
+    hook_call(protocal_handler_addr, 0x1CC91, &log_dll);
+    hook_call(protocal_handler_addr, 0xC921, &log_dll);
+    hook_call(protocal_handler_addr, 0xC551, &log_dll);
+    hook_call(protocal_handler_addr, 0x83F1, &log_dll);
+    hook_call(protocal_handler_addr, 0xA831, &log_dll);
+    hook_call(protocal_handler_addr, 0x83C1, &log_dll);
 }
 
 void run() {
@@ -215,8 +258,7 @@ DllMain(HINSTANCE
         lpv_reserved) {
     switch (fdw_reason) {
         case DLL_PROCESS_ATTACH:
-            new
-                    std::thread(run);
+            new std::thread(run);
             break;
         case DLL_THREAD_ATTACH:
             break;

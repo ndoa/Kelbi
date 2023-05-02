@@ -3,6 +3,7 @@
 
 #include <windows.h>
 #include <string>
+#include <codecvt>
 
 std::wstring get_exe_path() {
     WCHAR exePath[MAX_PATH + 1];
@@ -90,6 +91,22 @@ void show(I *bytes, int size, bool stop_at_null) {
     fprintf(stdout, "%s\n", to_hex(bytes, size, stop_at_null).c_str());
     fprintf(stdout, "---------\n");
     fprintf(stdout, "\n");
+}
+
+std::wstring s_2_ws(const std::string& str)
+{
+    using convert_typeX = std::codecvt_utf8<wchar_t>;
+    std::wstring_convert<convert_typeX, wchar_t> converterX;
+
+    return converterX.from_bytes(str);
+}
+
+std::string ws_2_s(const std::wstring& wstr)
+{
+    using convert_typeX = std::codecvt_utf8<wchar_t>;
+    std::wstring_convert<convert_typeX, wchar_t> converterX;
+
+    return converterX.to_bytes(wstr);
 }
 
 #endif //MHO_LAUNCHER_UTIL_H

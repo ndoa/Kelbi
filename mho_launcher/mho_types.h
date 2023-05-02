@@ -28,6 +28,20 @@ typedef int (__cdecl *fn_aes_key_expansion)(
         void *expanded_key
 );
 
+typedef void (__cdecl *fn_log_dll)(
+        int unk,
+        size_t w_str_len,
+        wchar_t *str_buffer,
+        void *fmt_args
+);
+
+typedef void (__cdecl *fn_log_format)(
+        void* out_buffer,
+        size_t out_buf_len,
+        wchar_t* str_buffer,
+        void* fmt_args
+);
+
 typedef void(__cdecl *fn_crygame_13EC290)();
 
 #endif //MHO_LAUNCHER_MHO_TYPES_H
