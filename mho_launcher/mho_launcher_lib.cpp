@@ -244,6 +244,7 @@ void run() {
 
     // open console
     if (TRUE == AllocConsole()) {
+        // TODO it looks like console blocks on input, and require to press 'RETURN' to move game forwards sometimes.
         FILE *nfp[3];
         freopen_s(nfp + 0, "CONOUT$", "rb", stdin);
         freopen_s(nfp + 1, "CONOUT$", "wb", stdout);
