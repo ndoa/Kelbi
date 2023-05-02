@@ -7,6 +7,8 @@
 #include <fstream>
 #include <thread>
 #include <string>
+#include <iostream>
+#include <Tchar.h>
 
 DWORD server_url_address = 0;
 
@@ -239,18 +241,43 @@ void run_protocal_handler() {
     hook_call(protocal_handler_addr, 0x83C1, &log_dll);
 }
 
-void run() {
-    fprintf(stdout, "run\n");
-
-    // open console
-    if (TRUE == AllocConsole()) {
-        // TODO it looks like console blocks on input, and require to press 'RETURN' to move game forwards sometimes.
-        FILE *nfp[3];
-        freopen_s(nfp + 0, "CONOUT$", "rb", stdin);
-        freopen_s(nfp + 1, "CONOUT$", "wb", stdout);
-        freopen_s(nfp + 2, "CONOUT$", "wb", stderr);
-        std::ios::sync_with_stdio();
+void CreateConsole() {
+    if (!AllocConsole()) {
+        // Add some error handling here.
+        // You can call GetLastError() to get more info about the error.
+        return;
     }
+
+    // std::cout, std::clog, std::cerr, std::cin
+    FILE *fDummy;
+    freopen_s(&fDummy, "CONOUT$", "w", stdout);
+    freopen_s(&fDummy, "CONOUT$", "w", stderr);
+    freopen_s(&fDummy, "CONIN$", "r", stdin);
+    std::cout.clear();
+    std::clog.clear();
+    std::cerr.clear();
+    std::cin.clear();
+
+    // std::wcout, std::wclog, std::wcerr, std::wcin
+    HANDLE hConOut = CreateFile(_T("CONOUT$"), GENERIC_READ | GENERIC_WRITE, FILE_SHARE_READ | FILE_SHARE_WRITE, NULL,
+                                OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL);
+    HANDLE hConIn = CreateFile(_T("CONIN$"), GENERIC_READ | GENERIC_WRITE, FILE_SHARE_READ | FILE_SHARE_WRITE, NULL,
+                               OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL);
+    SetStdHandle(STD_OUTPUT_HANDLE, hConOut);
+    SetStdHandle(STD_ERROR_HANDLE, hConOut);
+    SetStdHandle(STD_INPUT_HANDLE, hConIn);
+    std::wcout.clear();
+    std::wclog.clear();
+    std::wcerr.clear();
+    std::wcin.clear();
+
+    std::ios::sync_with_stdio();
+}
+
+
+void run() {
+    CreateConsole();
+    fprintf(stdout, "run\n");
 
     // get base addr
     HMODULE mho_client_handle = GetModuleHandleA("mhoclient.exe");
