@@ -29,17 +29,23 @@ typedef int (__cdecl *fn_aes_key_expansion)(
 );
 
 typedef void (__cdecl *fn_log_dll)(
-        int unk,
-        size_t w_str_len,
-        wchar_t *str_buffer,
-        void *fmt_args
+        int p_unk,
+        size_t p_buffer_size,
+        wchar_t *p_str,
+        void *p_str_fmt_args
 );
 
+/***
+ * p_out_str_fmt - out buffer to hold formatted string
+ * p_out_str_fmt_size - size of out buffer
+ * p_str - string to be formatted
+ * p_str_fmt_args - format arguents
+ */
 typedef void (__cdecl *fn_log_format)(
-        void* out_buffer,
-        size_t out_buf_len,
-        wchar_t* str_buffer,
-        void* fmt_args
+        wchar_t *p_out_str_fmt,
+        size_t p_out_str_fmt_size,
+        wchar_t *p_str,
+        void *p_str_fmt_args
 );
 
 typedef void(__cdecl *fn_crygame_13EC290)();

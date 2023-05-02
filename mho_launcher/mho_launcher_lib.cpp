@@ -109,16 +109,30 @@ int __cdecl aes_key_expansion(
 }
 
 void __cdecl log_dll(
-        int unk,
-        size_t str_len,
-        wchar_t *str_buffer,
-        void *fmt_args
+        int p_unk,
+        size_t p_buffer_size,
+        wchar_t *p_str,
+        void *p_str_fmt_args
 ) {
-    wchar_t *out_buffer = new wchar_t[400];
-    org_log_format(out_buffer, 400, str_buffer, fmt_args);
-    std::wstring w_log_text(out_buffer, 400);
+    size_t w_str_size = std::wcslen(p_str);
+    if (w_str_size <= 0) {
+        //fprintf(stdout, "protocalhandler::w_str_size:%d (p_unk:%d, p_buffer_size:%d p_str:%p, p_str_fmt_args:%p)\n",
+        //        w_str_size, p_unk, p_buffer_size, p_str, p_str_fmt_args
+        //);
+        return;
+    }
+    // `p_buffer_size` should be appropriate sized to hold formatted string
+    size_t out_buffer_size = p_buffer_size + w_str_size + 1024; // just to be sure
+    wchar_t *w_str_fmt = new wchar_t[out_buffer_size];
+
+    // this is a function the game uses to apply formatting, it als adds process and thread id to the string
+    org_log_format(w_str_fmt, out_buffer_size, p_str, p_str_fmt_args);
+    size_t w_str_fmt_size = std::wcslen(w_str_fmt);
+    std::wstring w_log_text(w_str_fmt, w_str_fmt_size);
+
+    // converting wstring to string, to be able to print it to console
     std::string log_text = ws_2_s(w_log_text);
-    delete[] out_buffer;
+    delete[] w_str_fmt;
     fprintf(stdout, "protocalhandler::log:%s\n", log_text.c_str());
 }
 
@@ -251,11 +265,7 @@ void run() {
     std::thread *run_protocal_thread = new std::thread(run_protocal_handler);
 }
 
-BOOL WINAPI
-DllMain(HINSTANCE
-        h_instance,
-        DWORD fdw_reason, LPVOID
-        lpv_reserved) {
+BOOL WINAPI DllMain(HINSTANCE h_instance, DWORD fdw_reason, LPVOID lpv_reserved) {
     switch (fdw_reason) {
         case DLL_PROCESS_ATTACH:
             new std::thread(run);
@@ -267,6 +277,5 @@ DllMain(HINSTANCE
         case DLL_PROCESS_DETACH:
             break;
     }
-    return
-            TRUE;
+    return TRUE;
 }
