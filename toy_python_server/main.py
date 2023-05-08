@@ -134,10 +134,22 @@ class GameClient():
                                    97, 98, 99, 100, 101, 102, 103, 104, 105, 106, 107, 108, 109, 110, 111, 112,
                                    113, 114, 115, 116, 117, 118, 119, 120, 121, 122, 123, 124, 125, 126, 127, 128,
                                    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0x74, 0x73, 0x66, 0x34, 0x67, 16])
+            encrypt_s_key = bytes([0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+                                   0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+                                   0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+                                   0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+                                   0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+                                   0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+                                   0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+                                  # 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+                                   0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0x74, 0x73, 0x66, 0x34, 0x67, 16])
+            # TODO it looks like packets are dropped by client where this is larger than 128
             encrypt_s_key = cipher.encrypt(encrypt_s_key)
-            print("encrypt_s_key:")
-            hexdump(encrypt_s_key)
 
+
+        #encrypt_s_key =bytes(bytearray(128))
+        print("encrypt_s_key:")
+        hexdump(encrypt_s_key)
         ext = TPDUExtChgSkey.build(dict(
             Type=0,
             Len=len(encrypt_s_key),
