@@ -33,8 +33,10 @@ int __cdecl perform_tpdu_decryption(
     // *encryption_mode_addr = 0;
     // allow_unencrypted_packets = 1;
 
-    fprintf(stdout, "encryption_mode_addr: %d\n", *encryption_mode_addr);
-    show((uint8_t *) inputBuffer, inputBufferLength, false);
+    fprintf(stdout, "DECRYPT - encryption_mode_addr: %d\n", *encryption_mode_addr);
+
+    fprintf(stdout, "DECRYPT - Input Buffer\n");
+    show((uint8_t *) inputBuffer, inputBufferLength);
 
     int ret = org_perform_tpdu_decryption(apiHandle,
                                           inputBuffer,
@@ -45,9 +47,12 @@ int __cdecl perform_tpdu_decryption(
                                           allow_unencrypted_packets
     );
 
+    fprintf(stdout, "DECRYPT - Return: Dec:%d Hex:0x%08X\n", ret, ret);
+
     void *out = *outputBuffer;
     signed int outlen = *outputBufferLength;
-    show((uint8_t *) out, outlen, false);
+    fprintf(stdout, "DECRYPT - Output Buffer\n");
+    show((uint8_t *) out, outlen);
 
     fprintf(stdout, "DECRYPT - END\n");
 
@@ -64,14 +69,15 @@ int __cdecl perform_tpdu_encryption(
 ) {
     fprintf(stdout, "ENCRYPT - START\n");
 
-    show((uint8_t *) inputBuffer, inputBufferLength, false);
+    fprintf(stdout, "ENCRYPT - Input Buffer\n");
+    show((uint8_t *) inputBuffer, inputBufferLength);
 
 
     uint8_t *encryption_mode_addr = (uint8_t *) apiHandle + 0x84;
     //*encryption_mode_addr = 0;
     //allow_unencrypted = 1;
 
-    fprintf(stdout, "encryption_mode_addr: %d\n", *encryption_mode_addr);
+    fprintf(stdout, "ENCRYPT - encryption_mode_addr: %d\n", *encryption_mode_addr);
 
 
     int ret = org_perform_tpdu_encryption(apiHandle,
@@ -81,10 +87,12 @@ int __cdecl perform_tpdu_encryption(
                                           outputBufferLength,
                                           allow_unencrypted
     );
+    fprintf(stdout, "ENCRYPT - Return: Dec:%d Hex:0x%08X\n", ret, ret);
 
     void *out = *outputBuffer;
     signed int outlen = *outputBufferLength;
-    show((uint8_t *) out, outlen, false);
+    fprintf(stdout, "ENCRYPT - Output Buffer\n");
+    show((uint8_t *) out, outlen);
 
     fprintf(stdout, "ENCRYPT - END\n");
 
@@ -100,12 +108,12 @@ int __cdecl aes_key_expansion(
     fprintf(stdout, "aes_key_expansion (bits:%d)\n", key_len_bits);
 
     unsigned int key_len_bytes = key_len_bits / 8;
-    show((uint8_t *) key, key_len_bytes, false);
+    show((uint8_t *) key, key_len_bytes);
 
     int ret = org_aes_key_expansion(key, key_len_bits, expanded_key);
     if (key_len_bits == 128) {
         unsigned int expanded_key_len_bytes = 176;
-        show((uint8_t *) expanded_key, expanded_key_len_bytes, false);
+        show((uint8_t *) expanded_key, expanded_key_len_bytes);
     }
     return ret;
 }
@@ -116,8 +124,13 @@ void __cdecl log_dll(
         wchar_t *p_str,
         void *p_str_fmt_args
 ) {
+    // call original, just in case we find a switch that prints to file or want to observe behaviour related.
+    org_log_dll(p_unk, p_buffer_size, p_str, p_str_fmt_args);
+
     size_t w_str_size = std::wcslen(p_str);
     if (w_str_size <= 0) {
+        // TODO I am not interested if there is no string content in the buffer,
+        // TODO however it gets called some times without any content.
         //fprintf(stdout, "protocalhandler::w_str_size:%d (p_unk:%d, p_buffer_size:%d p_str:%p, p_str_fmt_args:%p)\n",
         //        w_str_size, p_unk, p_buffer_size, p_str, p_str_fmt_args
         //);
@@ -243,8 +256,6 @@ void run_protocal_handler() {
 
 void CreateConsole() {
     if (!AllocConsole()) {
-        // Add some error handling here.
-        // You can call GetLastError() to get more info about the error.
         return;
     }
 
