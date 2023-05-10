@@ -3,6 +3,8 @@
 #include "mho_types.h"
 #include "util.h"
 
+#include "blockingconcurrentqueue.h"
+
 #include <windows.h>
 #include <fstream>
 #include <thread>
@@ -19,6 +21,39 @@ fn_aes_key_expansion org_aes_key_expansion = nullptr;
 fn_log_dll org_log_dll = nullptr;
 fn_log_format org_log_format = nullptr;
 
+/// Event System - START
+// Had some issues with printing console logs on game threads.
+// Now only constructing the logs on game thread but not printing.
+// Isolating the printing to my own thread via a queue.
+struct Event {
+    std::string msg;
+};
+
+std::atomic<bool> is_running;
+moodycamel::BlockingConcurrentQueue<Event> *events = nullptr;
+
+void run_events() {
+    Event event{};
+    while (is_running) {
+        if (!events->wait_dequeue_timed(event, 250 * 1000)) {
+            continue;
+        }
+        std::cout << event.msg;
+    }
+}
+
+void log(const char *fmt, ...) {
+    va_list ap;
+            va_start (ap, fmt);
+    std::string buf = vformat(fmt, ap);
+            va_end (ap);
+    events->enqueue({
+                            buf
+                    });
+}
+
+/// Event System - END
+
 int __cdecl perform_tpdu_decryption(
         TQQApiHandle *apiHandle,
         char *inputBuffer,
@@ -27,15 +62,15 @@ int __cdecl perform_tpdu_decryption(
         unsigned int *outputBufferLength,
         int is_TPDU_CMD_PLAIN,
         int allow_unencrypted_packets) {
-    fprintf(stdout, "DECRYPT - START\n");
+    log("DECRYPT - START\n");
 
     uint8_t *encryption_mode_addr = (uint8_t *) apiHandle + 0x84;
     // *encryption_mode_addr = 0;
     // allow_unencrypted_packets = 1;
 
-    fprintf(stdout, "DECRYPT - encryption_mode_addr: %d\n", *encryption_mode_addr);
+    log("DECRYPT - encryption_mode_addr: %d\n", *encryption_mode_addr);
 
-    fprintf(stdout, "DECRYPT - Input Buffer\n");
+    log("DECRYPT - Input Buffer\n");
     show((uint8_t *) inputBuffer, inputBufferLength);
 
     int ret = org_perform_tpdu_decryption(apiHandle,
@@ -47,14 +82,14 @@ int __cdecl perform_tpdu_decryption(
                                           allow_unencrypted_packets
     );
 
-    fprintf(stdout, "DECRYPT - Return: Dec:%d Hex:0x%08X\n", ret, ret);
+    log("DECRYPT - Return: Dec:%d Hex:0x%08X\n", ret, ret);
 
     void *out = *outputBuffer;
     signed int outlen = *outputBufferLength;
-    fprintf(stdout, "DECRYPT - Output Buffer\n");
+    log("DECRYPT - Output Buffer\n");
     show((uint8_t *) out, outlen);
 
-    fprintf(stdout, "DECRYPT - END\n");
+    log("DECRYPT - END\n");
 
     return ret;
 }
@@ -67,9 +102,9 @@ int __cdecl perform_tpdu_encryption(
         signed int *outputBufferLength,
         int allow_unencrypted
 ) {
-    fprintf(stdout, "ENCRYPT - START\n");
+    log("ENCRYPT - START\n");
 
-    fprintf(stdout, "ENCRYPT - Input Buffer\n");
+    log("ENCRYPT - Input Buffer\n");
     show((uint8_t *) inputBuffer, inputBufferLength);
 
 
@@ -77,7 +112,7 @@ int __cdecl perform_tpdu_encryption(
     //*encryption_mode_addr = 0;
     //allow_unencrypted = 1;
 
-    fprintf(stdout, "ENCRYPT - encryption_mode_addr: %d\n", *encryption_mode_addr);
+    log("ENCRYPT - encryption_mode_addr: %d\n", *encryption_mode_addr);
 
 
     int ret = org_perform_tpdu_encryption(apiHandle,
@@ -87,14 +122,14 @@ int __cdecl perform_tpdu_encryption(
                                           outputBufferLength,
                                           allow_unencrypted
     );
-    fprintf(stdout, "ENCRYPT - Return: Dec:%d Hex:0x%08X\n", ret, ret);
+    log("ENCRYPT - Return: Dec:%d Hex:0x%08X\n", ret, ret);
 
     void *out = *outputBuffer;
     signed int outlen = *outputBufferLength;
-    fprintf(stdout, "ENCRYPT - Output Buffer\n");
+    log("ENCRYPT - Output Buffer\n");
     show((uint8_t *) out, outlen);
 
-    fprintf(stdout, "ENCRYPT - END\n");
+    log("ENCRYPT - END\n");
 
     return ret;
 }
@@ -105,7 +140,7 @@ int __cdecl aes_key_expansion(
         unsigned int key_len_bits,
         void *expanded_key
 ) {
-    fprintf(stdout, "aes_key_expansion (bits:%d)\n", key_len_bits);
+    log("aes_key_expansion (bits:%d)\n", key_len_bits);
 
     unsigned int key_len_bytes = key_len_bits / 8;
     show((uint8_t *) key, key_len_bytes);
@@ -131,7 +166,7 @@ void __cdecl log_dll(
     if (w_str_size <= 0) {
         // TODO I am not interested if there is no string content in the buffer,
         // TODO however it gets called some times without any content.
-        //fprintf(stdout, "protocalhandler::w_str_size:%d (p_unk:%d, p_buffer_size:%d p_str:%p, p_str_fmt_args:%p)\n",
+        //fprintf("protocalhandler::w_str_size:%d (p_unk:%d, p_buffer_size:%d p_str:%p, p_str_fmt_args:%p)\n",
         //        w_str_size, p_unk, p_buffer_size, p_str, p_str_fmt_args
         //);
         return;
@@ -148,7 +183,7 @@ void __cdecl log_dll(
     // converting wstring to string, to be able to print it to console
     std::string log_text = ws_2_s(w_log_text);
     delete[] w_str_fmt;
-    fprintf(stdout, "protocalhandler::log:%s\n", log_text.c_str());
+    log("protocalhandler::log:%s\n", log_text.c_str());
 }
 
 /**
@@ -157,7 +192,7 @@ void __cdecl log_dll(
  */
 void __cdecl crygame_13EC290() {
 
-    fprintf(stdout, "crygame_13EC290\n");
+    log("crygame_13EC290\n");
 
     const char *url = "127.0.0.1:8142";
     WriteMemory((LPVOID) server_url_address, url, strlen(url));
@@ -171,13 +206,13 @@ void __cdecl crygame_13EC290() {
 void run_crygame() {
     HMODULE crygame_handle = nullptr;
     DWORD crygame_addr = 0;
-    fprintf(stdout, "wait for crygame... \n");
+    log("wait for crygame... \n");
     while (!crygame_handle) {
         crygame_handle = GetModuleHandleA("crygame");
         std::this_thread::sleep_for(std::chrono::milliseconds(20));
     }
     crygame_addr = (DWORD) crygame_handle;
-    fprintf(stdout, "got crygame_handle: %p \n", crygame_handle);
+    log("got crygame_handle: %p \n", crygame_handle);
 
     // assign original function calls
     org_fn_crygame_13EC290 = (fn_crygame_13EC290) (crygame_addr + 0x13EC290);
@@ -192,13 +227,13 @@ void run_crygame() {
 void run_protocal_handler() {
     HMODULE protocal_handler_handle = nullptr;
 
-    fprintf(stdout, "wait for protocalhandler... \n");
+    log("wait for protocalhandler... \n");
     while (!protocal_handler_handle) {
         protocal_handler_handle = GetModuleHandleA("protocalhandler");
         std::this_thread::sleep_for(std::chrono::milliseconds(20));
     }
     DWORD protocal_handler_addr = (DWORD) protocal_handler_handle;
-    fprintf(stdout, "got protocal_handler_handle: %p \n", protocal_handler_handle);
+    log("got protocal_handler_handle: %p \n", protocal_handler_handle);
 
     // assign original function calls
     org_perform_tpdu_decryption = (fn_perform_tpdu_decryption) (protocal_handler_addr + 0x73DC0);
@@ -287,17 +322,17 @@ void CreateConsole() {
 
 
 void run() {
-    CreateConsole();
-    fprintf(stdout, "run\n");
+    std::thread *run_events_thread = new std::thread(run_events);
+    log("run\n");
 
     // get base addr
     HMODULE mho_client_handle = GetModuleHandleA("mhoclient.exe");
     DWORD mho_client_addr = (DWORD) mho_client_handle;
-    fprintf(stdout, "mho_client_handle: %p \n", mho_client_handle);
+    log("mho_client_handle: %p \n", mho_client_handle);
 
     // assign variables depending on mhoclient base
     server_url_address = mho_client_addr + 0x15780C8; // RVA
-    fprintf(stdout, "server_url_address: 0x%08X \n", server_url_address);
+    log("server_url_address: 0x%08X \n", server_url_address);
 
     // kickoff workers
     std::thread *run_crygame_thread = new std::thread(run_crygame);
@@ -307,6 +342,9 @@ void run() {
 BOOL WINAPI DllMain(HINSTANCE h_instance, DWORD fdw_reason, LPVOID lpv_reserved) {
     switch (fdw_reason) {
         case DLL_PROCESS_ATTACH:
+            events = new moodycamel::BlockingConcurrentQueue<Event>(100);
+            is_running = true;
+            CreateConsole();
             new std::thread(run);
             break;
         case DLL_THREAD_ATTACH:
@@ -314,6 +352,7 @@ BOOL WINAPI DllMain(HINSTANCE h_instance, DWORD fdw_reason, LPVOID lpv_reserved)
         case DLL_THREAD_DETACH:
             break;
         case DLL_PROCESS_DETACH:
+            is_running = false;
             break;
     }
     return TRUE;
