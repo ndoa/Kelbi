@@ -2,6 +2,7 @@
 #include "memory.h"
 #include "mho_types.h"
 #include "util.h"
+#include "memory_mapper.h"
 
 #include "blockingconcurrentqueue.h"
 
@@ -35,7 +36,8 @@ moodycamel::BlockingConcurrentQueue<Event> *events = nullptr;
 void run_events() {
     Event event{};
     while (is_running) {
-        if (!events->wait_dequeue_timed(event, 250 * 1000)) {
+        if (!events->wait_dequeue_timed(event, 500 * 1000)) {
+            // check every 500ms if we are still running
             continue;
         }
         std::cout << event.msg;
@@ -47,9 +49,7 @@ void log(const char *fmt, ...) {
             va_start (ap, fmt);
     std::string buf = vformat(fmt, ap);
             va_end (ap);
-    events->enqueue({
-                            buf
-                    });
+    events->enqueue({buf});
 }
 
 /// Event System - END
@@ -65,8 +65,8 @@ int __cdecl perform_tpdu_decryption(
     log("DECRYPT - START\n");
 
     uint8_t *encryption_mode_addr = (uint8_t *) apiHandle + 0x84;
-    // *encryption_mode_addr = 0;
-    // allow_unencrypted_packets = 1;
+   // *encryption_mode_addr = 0;
+   // allow_unencrypted_packets = 1;
 
     log("DECRYPT - encryption_mode_addr: %d\n", *encryption_mode_addr);
 
@@ -109,8 +109,8 @@ int __cdecl perform_tpdu_encryption(
 
 
     uint8_t *encryption_mode_addr = (uint8_t *) apiHandle + 0x84;
-    //*encryption_mode_addr = 0;
-    //allow_unencrypted = 1;
+   // *encryption_mode_addr = 0;
+   // allow_unencrypted = 1;
 
     log("ENCRYPT - encryption_mode_addr: %d\n", *encryption_mode_addr);
 
@@ -200,6 +200,33 @@ void __cdecl crygame_13EC290() {
     org_fn_crygame_13EC290();
 }
 
+
+void __cdecl asm_patch_svr_call() {
+    log("asm_patch_svr_call\n");
+    const char *url = "127.0.0.1:8142";
+    WriteMemory((LPVOID) server_url_address, url, strlen(url));
+}
+
+DWORD asm_patch_svr_dst = 0;
+__declspec(naked) void asm_patch_svr() {
+    __asm {
+        // do my shit
+            pushad
+            push eax
+            call asm_patch_svr_call
+            add esp, 4
+            popad
+        // recover stolen bytes
+            push edi
+            mov edi,ecx
+            test ebx,ebx
+        // jump back
+            jmp asm_patch_svr_dst
+    }
+}
+
+
+
 /**
  * waits until crygame.dll is loaded and performs and applies patches to its memory
  */
@@ -218,7 +245,10 @@ void run_crygame() {
     org_fn_crygame_13EC290 = (fn_crygame_13EC290) (crygame_addr + 0x13EC290);
 
     // hook existing ones
-    hook_call(crygame_addr, 0x11A8BF4, &crygame_13EC290);
+    //hook_call(crygame_addr, 0x11A8BF4, &crygame_13EC290);
+
+    asm_patch_svr_dst = crygame_addr + 0x11A8BDD;
+    hook_jmp(crygame_addr, 0x11A8BD8, &asm_patch_svr);
 }
 
 /**
@@ -289,6 +319,108 @@ void run_protocal_handler() {
     hook_call(protocal_handler_addr, 0x83C1, &log_dll);
 }
 
+
+void create_file_mapping_a(LPCSTR lpName) {
+    std::string name = std::string(lpName);
+    log("create_file_mapping_a:'%s'\n", name.c_str());
+}
+
+void open_file_mapping_w(LPCWSTR lpName) {
+    std::string name = ws_2_s(std::wstring(lpName));
+    log("open_file_mapping_w:'%s'\n", name.c_str());
+}
+
+DWORD open_file_mapping_a_dst = 0;
+DWORD open_file_mapping_w_dst = 0;
+DWORD create_file_mapping_a_dst = 0;
+
+__declspec(naked) void asm_create_file_mapping_a() {
+    __asm {
+        // do my shit
+            pushad
+            push eax
+            call create_file_mapping_a
+            add esp, 4
+            popad
+        // recover stolen bytes
+            mov edi, edi
+            push ebp
+            mov ebp, esp
+        // jump back
+            jmp create_file_mapping_a_dst
+    }
+}
+
+DWORD kernel32_addra = 0;
+int opec = 0;
+
+void open_file_mapping_a(LPCSTR lpName) {
+    std::string name = std::string(lpName);
+    log("open_file_mapping_a:'%s'\n", name.c_str());
+    opec++;
+    if (opec > 1) {
+        // hook_jmp(kernel32_addra, 0x116B0, &asm_create_file_mapping_a);
+    }
+}
+
+
+__declspec(naked) void asm_open_file_mapping_a() {
+    __asm {
+        // do my shit
+            pushad
+            push eax
+            call open_file_mapping_a
+            add esp, 4
+            popad
+        // recover stolen bytes
+            mov edi, edi
+            push ebp
+            mov ebp, esp
+        // jump back
+            jmp open_file_mapping_a_dst
+    }
+}
+
+__declspec(naked) void asm_open_file_mapping_w() {
+    __asm {
+        // do my shit
+            pushad
+            push eax
+            call open_file_mapping_w
+            add esp, 4
+            popad
+        // recover stolen bytes
+            mov edi, edi
+            push ebp
+            mov ebp, esp
+        // jump back
+            jmp open_file_mapping_w_dst
+    }
+}
+
+void run_kernel() {
+    HMODULE kernel32_handle = nullptr;
+
+    kernel32_handle = GetModuleHandleA("kernel32");
+    if (!kernel32_handle) {
+        log("FAILED TO GET kernel32_handle !!!!!!!!!!\n");
+        return;
+    }
+
+    DWORD kernel32_addr = (DWORD) kernel32_handle;
+    kernel32_addra = kernel32_addr;
+    log("got kernel32_handle: %p \n", kernel32_handle);
+
+    open_file_mapping_a_dst = kernel32_addr + 0x18780 + 5;
+    //   hook_jmp(kernel32_addr, 0x18780, &asm_open_file_mapping_a);
+
+    open_file_mapping_w_dst = kernel32_addr + 0x22570 + 5;
+    //   hook_jmp(kernel32_addr, 0x22570, &asm_open_file_mapping_w);
+
+    create_file_mapping_a_dst = kernel32_addr + 0x116B0 + 5;
+    //  hook_jmp(kernel32_addr, 0x116B0, &asm_create_file_mapping_a);
+}
+
 void CreateConsole() {
     if (!AllocConsole()) {
         return;
@@ -305,10 +437,21 @@ void CreateConsole() {
     std::cin.clear();
 
     // std::wcout, std::wclog, std::wcerr, std::wcin
-    HANDLE hConOut = CreateFile(_T("CONOUT$"), GENERIC_READ | GENERIC_WRITE, FILE_SHARE_READ | FILE_SHARE_WRITE, NULL,
-                                OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL);
-    HANDLE hConIn = CreateFile(_T("CONIN$"), GENERIC_READ | GENERIC_WRITE, FILE_SHARE_READ | FILE_SHARE_WRITE, NULL,
-                               OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL);
+    HANDLE hConOut = CreateFile(_T("CONOUT$"),
+                                GENERIC_READ | GENERIC_WRITE, FILE_SHARE_READ | FILE_SHARE_WRITE,
+                                NULL,
+                                OPEN_EXISTING,
+                                FILE_ATTRIBUTE_NORMAL,
+                                NULL
+    );
+    HANDLE hConIn = CreateFile(_T("CONIN$"),
+                               GENERIC_READ | GENERIC_WRITE,
+                               FILE_SHARE_READ | FILE_SHARE_WRITE,
+                               NULL,
+                               OPEN_EXISTING,
+                               FILE_ATTRIBUTE_NORMAL,
+                               NULL
+    );
     SetStdHandle(STD_OUTPUT_HANDLE, hConOut);
     SetStdHandle(STD_ERROR_HANDLE, hConOut);
     SetStdHandle(STD_INPUT_HANDLE, hConIn);
@@ -324,6 +467,11 @@ void CreateConsole() {
 void run() {
     std::thread *run_events_thread = new std::thread(run_events);
     log("run\n");
+
+    //map_tcls_tasmemory();
+    //map_tcls_sharedmememory();
+
+    // run_kernel();
 
     // get base addr
     HMODULE mho_client_handle = GetModuleHandleA("mhoclient.exe");

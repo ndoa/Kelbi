@@ -1,17 +1,19 @@
 #include "util.h"
+#include "memory_mapper.h"
 
 #include <windows.h>
 #include <iostream>
 #include <string>
 
 
-int main() {
+void mem_map_lunch() {
     std::cout << "MHO Launcher" << std::endl;
 
-    std::wstring mho_launcher_lib_path = get_exe_dir() + L"mho_launcher_lib.dll";
     std::string mho_dir = "C:\\Users\\nxspirit\\Downloads\\MHO_FullDirectory_Final\\TencentGame\\Monster Hunter Online\\Bin\\Client\\Bin32\\";
-    std::string mho_exe = "MHOClient.exe";
+    std::string mho_exe = "MHOClient_latest_dump_SCY_.exe";
     std::string mho_arg = "-qos_id=food -q -loginqq=1234567890123456789 -nosplash";
+
+  //  map_mhfclient();
 
     // Create Process
     STARTUPINFOA si;
@@ -36,7 +38,56 @@ int main() {
     if (ret == FALSE) {
         DWORD err = GetLastError();
         printf("CreateProcess failed (%lu) Msg:%s\n", err, GetLastErrorAsString(err).c_str());
-        return 0;
+        return;
+    }
+    do {
+
+        std::cout << '\n' << "Press a key to resume MHOClient.exe...";
+    } while (std::cin.get() != '\n');
+
+    ResumeThread(pi.hThread);
+
+    do {
+        std::cout << '\n' << "Press a key to exit..";
+    } while (std::cin.get() != '\n');
+
+
+}
+
+void inject_lunch() {
+    std::cout << "MHO Launcher" << std::endl;
+
+    std::wstring mho_launcher_lib_path = get_exe_dir() + L"mho_launcher_lib.dll";
+    std::string mho_dir = "C:\\Users\\nxspirit\\Downloads\\MHO_FullDirectory_Final\\TencentGame\\Monster Hunter Online\\Bin\\Client\\Bin32\\";
+    std::string mho_exe = "MHOClient.exe";
+    std::string mho_arg = "-qos_id=food -q -loginqq=1234567890123456789 -nosplash";
+    //std::string mho_arg = "-src=tgp -nosplash";
+    //std::string mho_arg = "-nosplash";
+
+    // Create Process
+    STARTUPINFOA si;
+    memset(&si, 0, sizeof(si));
+    si.cb = sizeof(si);
+
+    PROCESS_INFORMATION pi;
+    memset(&pi, 0, sizeof(pi));
+
+    std::string application_name = mho_dir + mho_exe;
+    std::string cmd_args = mho_exe + " " + mho_arg;
+    int ret = CreateProcessA(application_name.c_str(),
+                             const_cast<char *>(cmd_args.c_str()),
+                             NULL,
+                             NULL,
+                             FALSE,
+                             CREATE_SUSPENDED,
+                             NULL,
+                             NULL,
+                             &si,
+                             &pi);
+    if (ret == FALSE) {
+        DWORD err = GetLastError();
+        printf("CreateProcess failed (%lu) Msg:%s\n", err, GetLastErrorAsString(err).c_str());
+        return;
     }
 
     // Allocate memory in the process
@@ -77,7 +128,7 @@ int main() {
     );
     if (load_library_thread == NULL) {
         fprintf(stderr, "load_library_thread == NULL\n");
-        return 0;
+        return;
     }
 
     do {
@@ -86,5 +137,10 @@ int main() {
 
     ResumeThread(pi.hThread);
 
-    return 0;
+    return;
+}
+
+int main() {
+    // inject_lunch();
+    mem_map_lunch();
 }
