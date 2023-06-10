@@ -31,6 +31,21 @@ std::wstring get_exe_dir() {
     return dir;
 }
 
+std::wstring get_exe_name() {
+    std::wstring path = get_exe_path();
+    size_t idx = path.find_last_of(L"/\\");
+    if (idx == std::wstring::npos) {
+        return NULL;
+    }
+    idx++;
+    size_t len = path.length();
+    if (idx >= len) {
+        return NULL;
+    }
+    std::wstring dir = path.substr(idx, len - idx);
+    return dir;
+}
+
 std::string GetLastErrorAsString(DWORD error) {
     if (error == 0) {
         return std::string(); //No error message has been recorded

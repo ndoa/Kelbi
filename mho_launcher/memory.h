@@ -44,7 +44,7 @@ void hook_call(DWORD baseAddr, DWORD offset, LPVOID fnAddr) {
     WriteMemory((LPVOID) (patchHookAddr + 1), bRelativeHookInitAddr, 4);
 }
 
-void hook_jmp(DWORD baseAddr, DWORD offset, LPVOID fnAddr) {
+void patch_jmp(DWORD baseAddr, DWORD offset, LPVOID fnAddr) {
     DWORD patchHookAddr = baseAddr + offset;
     DWORD relativeFnHookAddr = (DWORD) ((char *) fnAddr - (char *) (patchHookAddr + 1 + 4));
     const char *patchInitStart = "\xE9";
@@ -52,6 +52,16 @@ void hook_jmp(DWORD baseAddr, DWORD offset, LPVOID fnAddr) {
     BYTE bRelativeHookInitAddr[4];
     memcpy(bRelativeHookInitAddr, &relativeFnHookAddr, 4);
     WriteMemory((LPVOID) (patchHookAddr + 1), bRelativeHookInitAddr, 4);
+}
+
+void patch_nop(DWORD baseAddr, DWORD offset, int count) {
+    DWORD patchHookAddr = baseAddr + offset;
+    char *nops = new char[count];
+    for (int i = 0; i < count; i++) {
+        nops[i] = (char) 0x90;
+    }
+    WriteMemory((LPVOID) patchHookAddr, nops, count);
+    delete[] nops;
 }
 
 #endif //MHO_LAUNCHER_MEMORY_H

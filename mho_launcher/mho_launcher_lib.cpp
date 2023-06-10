@@ -2,7 +2,6 @@
 #include "memory.h"
 #include "mho_types.h"
 #include "util.h"
-#include "memory_mapper.h"
 
 #include "blockingconcurrentqueue.h"
 
@@ -15,10 +14,7 @@
 
 DWORD server_url_address = 0;
 
-fn_perform_tpdu_encryption org_perform_tpdu_encryption = nullptr;
-fn_perform_tpdu_decryption org_perform_tpdu_decryption = nullptr;
 fn_crygame_13EC290 org_fn_crygame_13EC290 = nullptr;
-fn_aes_key_expansion org_aes_key_expansion = nullptr;
 fn_log_dll org_log_dll = nullptr;
 fn_log_format org_log_format = nullptr;
 
@@ -53,105 +49,6 @@ void log(const char *fmt, ...) {
 }
 
 /// Event System - END
-
-int __cdecl perform_tpdu_decryption(
-        TQQApiHandle *apiHandle,
-        char *inputBuffer,
-        unsigned int inputBufferLength,
-        void **outputBuffer,
-        unsigned int *outputBufferLength,
-        int is_TPDU_CMD_PLAIN,
-        int allow_unencrypted_packets) {
-    log("DECRYPT - START\n");
-
-    uint8_t *encryption_mode_addr = (uint8_t *) apiHandle + 0x84;
-   // *encryption_mode_addr = 0;
-   // allow_unencrypted_packets = 1;
-
-    log("DECRYPT - encryption_mode_addr: %d\n", *encryption_mode_addr);
-
-    log("DECRYPT - Input Buffer\n");
-    show((uint8_t *) inputBuffer, inputBufferLength);
-
-    int ret = org_perform_tpdu_decryption(apiHandle,
-                                          inputBuffer,
-                                          inputBufferLength,
-                                          outputBuffer,
-                                          outputBufferLength,
-                                          is_TPDU_CMD_PLAIN,
-                                          allow_unencrypted_packets
-    );
-
-    log("DECRYPT - Return: Dec:%d Hex:0x%08X\n", ret, ret);
-
-    void *out = *outputBuffer;
-    signed int outlen = *outputBufferLength;
-    log("DECRYPT - Output Buffer\n");
-    show((uint8_t *) out, outlen);
-
-    log("DECRYPT - END\n");
-
-    return ret;
-}
-
-int __cdecl perform_tpdu_encryption(
-        TQQApiHandle *apiHandle,
-        void *inputBuffer,
-        signed int inputBufferLength,
-        void **outputBuffer,
-        signed int *outputBufferLength,
-        int allow_unencrypted
-) {
-    log("ENCRYPT - START\n");
-
-    log("ENCRYPT - Input Buffer\n");
-    show((uint8_t *) inputBuffer, inputBufferLength);
-
-
-    uint8_t *encryption_mode_addr = (uint8_t *) apiHandle + 0x84;
-   // *encryption_mode_addr = 0;
-   // allow_unencrypted = 1;
-
-    log("ENCRYPT - encryption_mode_addr: %d\n", *encryption_mode_addr);
-
-
-    int ret = org_perform_tpdu_encryption(apiHandle,
-                                          inputBuffer,
-                                          inputBufferLength,
-                                          outputBuffer,
-                                          outputBufferLength,
-                                          allow_unencrypted
-    );
-    log("ENCRYPT - Return: Dec:%d Hex:0x%08X\n", ret, ret);
-
-    void *out = *outputBuffer;
-    signed int outlen = *outputBufferLength;
-    log("ENCRYPT - Output Buffer\n");
-    show((uint8_t *) out, outlen);
-
-    log("ENCRYPT - END\n");
-
-    return ret;
-}
-
-
-int __cdecl aes_key_expansion(
-        void *key,
-        unsigned int key_len_bits,
-        void *expanded_key
-) {
-    log("aes_key_expansion (bits:%d)\n", key_len_bits);
-
-    unsigned int key_len_bytes = key_len_bits / 8;
-    show((uint8_t *) key, key_len_bytes);
-
-    int ret = org_aes_key_expansion(key, key_len_bits, expanded_key);
-    if (key_len_bits == 128) {
-        unsigned int expanded_key_len_bytes = 176;
-        show((uint8_t *) expanded_key, expanded_key_len_bytes);
-    }
-    return ret;
-}
 
 void __cdecl log_dll(
         int p_unk,
@@ -190,42 +87,13 @@ void __cdecl log_dll(
  * This is the first function that was easy to hook around the server connection routine.
  * its only purpose is to alter memory at the time, right before it is used.
  */
-void __cdecl crygame_13EC290() {
+void __cdecl crygame_13F3640() {
 
-    log("crygame_13EC290\n");
-
+    log("crygame_13F3640\n");
     const char *url = "127.0.0.1:8142";
     WriteMemory((LPVOID) server_url_address, url, strlen(url));
-
     org_fn_crygame_13EC290();
 }
-
-
-void __cdecl asm_patch_svr_call() {
-    log("asm_patch_svr_call\n");
-    const char *url = "127.0.0.1:8142";
-    WriteMemory((LPVOID) server_url_address, url, strlen(url));
-}
-
-DWORD asm_patch_svr_dst = 0;
-__declspec(naked) void asm_patch_svr() {
-    __asm {
-        // do my shit
-            pushad
-            push eax
-            call asm_patch_svr_call
-            add esp, 4
-            popad
-        // recover stolen bytes
-            push edi
-            mov edi,ecx
-            test ebx,ebx
-        // jump back
-            jmp asm_patch_svr_dst
-    }
-}
-
-
 
 /**
  * waits until crygame.dll is loaded and performs and applies patches to its memory
@@ -242,13 +110,10 @@ void run_crygame() {
     log("got crygame_handle: %p \n", crygame_handle);
 
     // assign original function calls
-    org_fn_crygame_13EC290 = (fn_crygame_13EC290) (crygame_addr + 0x13EC290);
+    org_fn_crygame_13EC290 = (fn_crygame_13EC290) (crygame_addr + 0x13F3640);
 
     // hook existing ones
-    //hook_call(crygame_addr, 0x11A8BF4, &crygame_13EC290);
-
-    asm_patch_svr_dst = crygame_addr + 0x11A8BDD;
-    hook_jmp(crygame_addr, 0x11A8BD8, &asm_patch_svr);
+    hook_call(crygame_addr, 0x11AED64, &crygame_13F3640);
 }
 
 /**
@@ -266,30 +131,8 @@ void run_protocal_handler() {
     log("got protocal_handler_handle: %p \n", protocal_handler_handle);
 
     // assign original function calls
-    org_perform_tpdu_decryption = (fn_perform_tpdu_decryption) (protocal_handler_addr + 0x73DC0);
-    org_perform_tpdu_encryption = (fn_perform_tpdu_encryption) (protocal_handler_addr + 0x73bb0);
-    org_aes_key_expansion = (fn_aes_key_expansion) (protocal_handler_addr + 0x888E0);
     org_log_dll = (fn_log_dll) (protocal_handler_addr + 0x1703);
     org_log_format = (fn_log_format) (protocal_handler_addr + 0x1A96);
-
-    // hook existing ones
-    hook_call(protocal_handler_addr, 0x36002, &perform_tpdu_decryption);
-    hook_call(protocal_handler_addr, 0x360FE, &perform_tpdu_decryption);
-    hook_call(protocal_handler_addr, 0x74AD3, &perform_tpdu_decryption);
-    hook_call(protocal_handler_addr, 0x74F7F, &perform_tpdu_decryption);
-    hook_call(protocal_handler_addr, 0x75336, &perform_tpdu_decryption);
-    hook_call(protocal_handler_addr, 0x75508, &perform_tpdu_decryption);
-    hook_call(protocal_handler_addr, 0x75651, &perform_tpdu_decryption);
-
-    hook_call(protocal_handler_addr, 0x36FAB, &perform_tpdu_encryption);
-    hook_call(protocal_handler_addr, 0x742A2, &perform_tpdu_encryption);
-    hook_call(protocal_handler_addr, 0x74661, &perform_tpdu_encryption);
-    hook_call(protocal_handler_addr, 0x75B70, &perform_tpdu_encryption);
-    hook_call(protocal_handler_addr, 0x76069, &perform_tpdu_encryption);
-
-    hook_call(protocal_handler_addr, 0x88CB0, &aes_key_expansion);
-    hook_call(protocal_handler_addr, 0x8B1E1, &aes_key_expansion);
-    hook_call(protocal_handler_addr, 0x8B50B, &aes_key_expansion);
 
     hook_call(protocal_handler_addr, 0x39171, &log_dll);
     hook_call(protocal_handler_addr, 0x39141, &log_dll);
@@ -317,108 +160,6 @@ void run_protocal_handler() {
     hook_call(protocal_handler_addr, 0x83F1, &log_dll);
     hook_call(protocal_handler_addr, 0xA831, &log_dll);
     hook_call(protocal_handler_addr, 0x83C1, &log_dll);
-}
-
-
-void create_file_mapping_a(LPCSTR lpName) {
-    std::string name = std::string(lpName);
-    log("create_file_mapping_a:'%s'\n", name.c_str());
-}
-
-void open_file_mapping_w(LPCWSTR lpName) {
-    std::string name = ws_2_s(std::wstring(lpName));
-    log("open_file_mapping_w:'%s'\n", name.c_str());
-}
-
-DWORD open_file_mapping_a_dst = 0;
-DWORD open_file_mapping_w_dst = 0;
-DWORD create_file_mapping_a_dst = 0;
-
-__declspec(naked) void asm_create_file_mapping_a() {
-    __asm {
-        // do my shit
-            pushad
-            push eax
-            call create_file_mapping_a
-            add esp, 4
-            popad
-        // recover stolen bytes
-            mov edi, edi
-            push ebp
-            mov ebp, esp
-        // jump back
-            jmp create_file_mapping_a_dst
-    }
-}
-
-DWORD kernel32_addra = 0;
-int opec = 0;
-
-void open_file_mapping_a(LPCSTR lpName) {
-    std::string name = std::string(lpName);
-    log("open_file_mapping_a:'%s'\n", name.c_str());
-    opec++;
-    if (opec > 1) {
-        // hook_jmp(kernel32_addra, 0x116B0, &asm_create_file_mapping_a);
-    }
-}
-
-
-__declspec(naked) void asm_open_file_mapping_a() {
-    __asm {
-        // do my shit
-            pushad
-            push eax
-            call open_file_mapping_a
-            add esp, 4
-            popad
-        // recover stolen bytes
-            mov edi, edi
-            push ebp
-            mov ebp, esp
-        // jump back
-            jmp open_file_mapping_a_dst
-    }
-}
-
-__declspec(naked) void asm_open_file_mapping_w() {
-    __asm {
-        // do my shit
-            pushad
-            push eax
-            call open_file_mapping_w
-            add esp, 4
-            popad
-        // recover stolen bytes
-            mov edi, edi
-            push ebp
-            mov ebp, esp
-        // jump back
-            jmp open_file_mapping_w_dst
-    }
-}
-
-void run_kernel() {
-    HMODULE kernel32_handle = nullptr;
-
-    kernel32_handle = GetModuleHandleA("kernel32");
-    if (!kernel32_handle) {
-        log("FAILED TO GET kernel32_handle !!!!!!!!!!\n");
-        return;
-    }
-
-    DWORD kernel32_addr = (DWORD) kernel32_handle;
-    kernel32_addra = kernel32_addr;
-    log("got kernel32_handle: %p \n", kernel32_handle);
-
-    open_file_mapping_a_dst = kernel32_addr + 0x18780 + 5;
-    //   hook_jmp(kernel32_addr, 0x18780, &asm_open_file_mapping_a);
-
-    open_file_mapping_w_dst = kernel32_addr + 0x22570 + 5;
-    //   hook_jmp(kernel32_addr, 0x22570, &asm_open_file_mapping_w);
-
-    create_file_mapping_a_dst = kernel32_addr + 0x116B0 + 5;
-    //  hook_jmp(kernel32_addr, 0x116B0, &asm_create_file_mapping_a);
 }
 
 void CreateConsole() {
@@ -463,28 +204,71 @@ void CreateConsole() {
     std::ios::sync_with_stdio();
 }
 
+void client_log(int do_log, char *near_log_ptr) {
+    if (do_log == 0) {
+        return;
+    }
+    char *log_ptr = near_log_ptr + 0x20;
+    int log_len = 0;
+    while (true) {
+        if (log_ptr[log_len] == 0) {
+            break;
+        }
+        log_len++;
+    }
+    if (log_len <= 0) {
+        return;
+    }
+    std::string log_text = std::string(log_ptr, log_len);
+    log("client_log: %s \n", log_text.c_str());
+}
+
+// @formatter:off
+_declspec(naked)
+void asm_client_log() {
+    _asm
+    {
+        pushad
+        mov eax, esp
+        push eax
+        push ecx
+        call client_log
+        add esp, 8
+        popad
+        // recover stolen bytes
+        mov esp, ebp
+        pop ebp
+        ret 0xC
+    }
+}
+// @formatter:on
+
+// TODO -> https://github.com/ndoa/Kelbi/blob/feature/playing-around/mho_launcher/mho_launcher_lib.cpp
 
 void run() {
-    std::thread *run_events_thread = new std::thread(run_events);
+    new std::thread(run_events);
     log("run\n");
 
-    //map_tcls_tasmemory();
-    //map_tcls_sharedmememory();
-
-    // run_kernel();
+    std::wstring exe_name_w = get_exe_name();
+    std::string exe_name = ws_2_s(exe_name_w);
+    log("exe_name: %s \n", exe_name.c_str());
 
     // get base addr
-    HMODULE mho_client_handle = GetModuleHandleA("mhoclient.exe");
+    HMODULE mho_client_handle = GetModuleHandleW(exe_name_w.c_str());
     DWORD mho_client_addr = (DWORD) mho_client_handle;
     log("mho_client_handle: %p \n", mho_client_handle);
 
     // assign variables depending on mhoclient base
-    server_url_address = mho_client_addr + 0x15780C8; // RVA
+    server_url_address = mho_client_addr + 0x157AAA0; // RVA
     log("server_url_address: 0x%08X \n", server_url_address);
 
-    // kickoff workers
-    std::thread *run_crygame_thread = new std::thread(run_crygame);
-    std::thread *run_protocal_thread = new std::thread(run_protocal_handler);
+    // hook logging fn
+    patch_jmp(mho_client_addr, 0x3E0F06, &asm_client_log);
+    // patch log exit jmp
+    patch_nop(mho_client_addr, 0x3E0C82, 6);
+
+    new std::thread(run_crygame);
+    new std::thread(run_protocal_handler);
 }
 
 BOOL WINAPI DllMain(HINSTANCE h_instance, DWORD fdw_reason, LPVOID lpv_reserved) {
